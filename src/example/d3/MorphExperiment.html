@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Morph Experiment</title>
+    <style>
+      body {
+        background-color: #192247;
+      }
+      .frame,
+      .anim {
+        float: left;
+        border: 1px solid white;
+      }
+      canvas {
+        position: absolute;
+      }
+      svg {
+        position: absolute;
+      }
+    </style>
+  </head>
+  <body>
+    <script src="js/d3.min.js"></script>
+    <script src="js/MorphExperiment/sampler.js"></script>
+    <script src="js/MorphExperiment/matrix.js"></script>
+    <script src="js/MorphExperiment/polyk.js"></script>
+    <svg width="960" height="500" style="display:none;">
+      <g transform="translate(-50,0)" opacity="0">
+        <path
+          id="outer"
+          fill="none"
+          stroke="#fff"
+          stroke-width="0.8"
+          stroke-miterlimit="10"
+          d="M174.7,85c-24.5,14-57,18-45.8,45.7
+        c9.5,23.4-28.2,15.1-45.8-25.7s20.5-65.8,45.8-65.8S196.7,72.5,174.7,85Z"
+        />
+        <path
+          id="inner"
+          fill="none"
+          stroke="#fff"
+          stroke-width="0.8"
+          stroke-miterlimit="10"
+          d="M128.4,64.4c-1.9-0.1-5.9,6-5.9,6s-2.3-3.6-1-7.4
+        c1.4-3.8,3.4-3.5,5-3.1C128.3,60.2,141.8,65.1,128.4,64.4z"
+        />
+      </g>
+      <g id="output"></g>
+    </svg>
+
+    <script>
+      var nframes = 19;
+      var fsize = 220;
+
+      var numSamples = 40;
+      var numRays = 250;
+      var numLines = 10;
+      var scale = 1.2;
+
+      var cx = 40;
+      var cy = 40;
+
+      var line = d3.svg
+        .line()
+        .x(function(d) {
+          return d.x;
+        })
+        .y(function(d) {
+          return d.y;
+        })
+        .interpolate("linear-closed")
+        //.interpolate("cardinal-closed")
+        .interpolate("basis-closed");
+
+      var inner = d3.select("#inner");
+      var outer = d3.select("#outer");
+
+      var body = d3.select("body");
+
+      var anim = body.append("div").classed("anim", true);
+
+      var frames = body.selectAll("div.frame").data(d3.range(nframes));
+      var framesEnter = frames
+        .enter()
+        .append("div")
+        .classed("frame", true)
+        .style({
+          width: fsize + "px",
+          height: fsize + "px",
+          margin: "5px"
+        });
+      framesEnter.append("canvas").each(function(d) {
+        this.width = fsize;
+        this.height = fsize;
+      });
+      framesEnter.append("svg").style({
+        width: fsize + "px",
+        height: fsize + "px"
+      });
+
+      frames.each(function(d) {
+        var t = d / (nframes - 1);
+        var inTheta = Math.sin(t * Math.PI * 2) * 90;
+        var outTheta = t * 360;
+
+        var svg = d3.select(this).select("svg");
+        var innerElectron = new electron()
+          .cx(cx)
+          .cy(cy)
+          .radius(15)
+          .dialRadius(3)
+          .color("#fff")
+          .update(svg)
+          .rotateMe(inTheta);
+        var outerElectron = new electron()
+          .cx(cx)
+          .cy(cy)
+          .radius(30)
+          .dialRadius(3)
+          .color("#fff")
+          .update(svg)
+          .rotateMe(outTheta);
+
+        interpolate(svg, null, inTheta, outTheta);
+      });
+
+      anim.style({
+        width: fsize + "px",
+        height: fsize + "px",
+        margin: "5px"
+      });
+      var animCanvas = anim.append("canvas").node();
+      animCanvas.width = fsize;
+      animCanvas.height = fsize;
+      var animSvg = anim.append("svg").style({
+        width: fsize + "px",
+        height: fsize + "px"
+      });
+
+      var dt = 0;
+      var ainTheta = Math.sin(dt * Math.PI * 2) * 90;
+      var aoutTheta = dt * 360;
+
+      var ainnerElectron = new electron()
+        .cx(cx)
+        .cy(cy)
+        .radius(15)
+        .dialRadius(3)
+        .color("#fff")
+        .update(animSvg);
+      //.rotateMe(ainTheta)
+      var aouterElectron = new electron()
+        .cx(cx)
+        .cy(cy)
+        .radius(30)
+        .dialRadius(3)
+        .color("#fff")
+        .update(animSvg);
+      //.rotateMe(aoutTheta);
+
+      var start = Date.now();
+      var duration = 20;
+      var pause = false;
+
+      d3.timer(function(elapsed) {
+        var now = Date.now();
+        if (now - start > duration) {
+          start = now;
+        } else {
+          return false;
+        }
+        dt = ((elapsed * 0.0005) % 10) / 10;
+        ainTheta = Math.sin(dt * Math.PI * 2) * 90;
+        aoutTheta = dt * 360;
+        ainnerElectron.rotateMe(ainTheta);
+        aouterElectron.rotateMe(aoutTheta);
+
+        interpolate(animSvg, null, ainTheta, aoutTheta);
+
+        return pause;
+      });
+
+      function interpolate(svg, canvas, inTheta, outTheta) {
+        var ins = Sampler.getSamples(inner.node(), numSamples);
+        var outs = Sampler.getSamples(outer.node(), numSamples);
+
+        var c = centroid(ins);
+        // we center our shapes on 0,0 to rotate about center
+        var zeroer = new Matrix().translate(-c.x, -c.y).scale(1);
+        var inmorph = new Matrix().scale(scale).rotate(inTheta);
+        var morpher = new Matrix().scale(scale).rotate(-outTheta);
+        var placer = new Matrix().translate(fsize / 2, fsize / 2);
+
+        ins.forEach(function(d) {
+          transformer(d, zeroer);
+          transformer(d, inmorph);
+          transformer(d, placer);
+        });
+        outs.forEach(function(d) {
+          transformer(d, zeroer);
+          transformer(d, morpher);
+          transformer(d, placer);
+        });
+
+        //verify center
+        transformer(c, zeroer);
+        transformer(c, placer);
+
+        var rayd = generateRays(numRays);
+
+        var inpoly = toPolyK(ins);
+        var ind = rayd.map(function(ray) {
+          var point = PolyK.Raycast(inpoly, c.x, c.y, ray.dx, ray.dy);
+          return {
+            x: c.x + ray.dx * point.dist,
+            y: c.y + ray.dy * point.dist,
+            perp: point.norm
+          };
+        });
+
+        var outpoly = toPolyK(outs);
+        var outd = rayd.map(function(ray) {
+          var point = PolyK.Raycast(outpoly, c.x, c.y, ray.dx, ray.dy);
+          return {
+            x: c.x + ray.dx * point.dist,
+            y: c.y + ray.dy * point.dist,
+            perp: point.norm
+          };
+        });
+        //console.log(outd)
+
+        var lines = [];
+        d3.range(numLines + 1).forEach(function(index) {
+          var samples = [];
+          var ratio = index / numLines;
+          var i, x, y;
+          var last;
+          for (i = 0; i < ind.length; i++) {
+            x = ind[i].x * (1 - ratio) + outd[i].x * ratio;
+            y = ind[i].y * (1 - ratio) + outd[i].y * ratio;
+            var p = { x: x, y: y };
+            samples.push(p);
+          }
+          lines.push(samples);
+        });
+
+        var blended = svg.selectAll("path.blend").data(lines);
+        blended
+          .enter()
+          .append("path")
+          .classed("blend", true);
+        blended.attr({
+          d: function(d) {
+            return line(d);
+          },
+          fill: "none",
+          stroke: "#ff005d",
+          "stroke-width": 1.5
+        });
+      }
+
+      function generateRays(num) {
+        var rays = d3.range(num).map(function(i) {
+          var theta = (i / num) * 2 * Math.PI;
+          var dx = Math.sin(theta);
+          var dy = Math.cos(theta);
+          return { dx: dx, dy: dy };
+        });
+        return rays;
+      }
+
+      // "electron" dial component.
+      function electron() {
+        var cx = 75;
+        var cy = 75;
+        var radius = 50;
+        var dialRadius = 10;
+        var color = "#000";
+        var dial;
+        var cb = function() {};
+
+        function rotateDial(deg) {
+          var omega = (deg * Math.PI) / 180;
+          var nx = (radius - dialRadius) * Math.sin(omega);
+          var ny = (radius - dialRadius) * Math.cos(omega);
+          dial.attr({
+            cx: cx + nx,
+            cy: cy + ny
+          });
+        }
+
+        this.update = function(g) {
+          var ring = g.append("circle").attr({
+            cx: cx,
+            cy: cy,
+            r: radius,
+            fill: "none",
+            stroke: color,
+            "stroke-width": 2
+          });
+
+          dial = g.append("circle").attr({
+            cx: cx + radius - dialRadius,
+            cy: cy,
+            r: dialRadius,
+            fill: color
+          });
+          return this;
+        };
+        this.cb = function(arg) {
+          if (arg) {
+            cb = arg;
+            return this;
+          }
+          return cb;
+        };
+        this.cx = function(arg) {
+          if (arg) {
+            cx = arg;
+            return this;
+          }
+          return cx;
+        };
+        this.cy = function(arg) {
+          if (arg) {
+            cy = arg;
+            return this;
+          }
+          return cy;
+        };
+        this.radius = function(arg) {
+          if (arg) {
+            radius = arg;
+            return this;
+          }
+          return radius;
+        };
+        this.dialRadius = function(arg) {
+          if (arg) {
+            dialRadius = arg;
+            return this;
+          }
+          return dialRadius;
+        };
+        this.color = function(arg) {
+          if (arg) {
+            color = arg;
+            return this;
+          }
+          return color;
+        };
+        this.rotateMe = function(omega) {
+          rotateDial(omega);
+          cb(omega);
+        };
+        return this;
+      }
+    </script>
+  </body>
+</html>

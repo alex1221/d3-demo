@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>US Foreign Military Bases</title>
+    <style>
+      body {
+        margin: 0;
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        background: #fcfcfa;
+        font-family: "Roboto", sans-serif;
+      }
+
+      main {
+        width: 25vw;
+        margin: 0 auto;
+        padding: 5vw;
+        max-width: 50em;
+      }
+
+      circle:hover {
+        stroke: #002147;
+      }
+
+      .container {
+        display: flex; /* or inline-flex */
+      }
+
+      .world {
+        cursor: move; /* fallback if grab cursor is unsupported */
+        cursor: grab;
+        cursor: -moz-grab;
+        cursor: -webkit-grab;
+      }
+    </style>
+  </head>
+  <body>
+    <script src="js/d3.v4.min.js"></script>
+    <script src="js/USForeignMilitaryBases/topojson.v2.min.js"></script>
+    <script src="js/USForeignMilitaryBases/versor.min.js"></script>
+    <script src="js/USForeignMilitaryBases/d3-inertia.min.js"></script>
+
+    <div class="container">
+      <svg>
+        <defs>
+          <!--         <pattern id="usflag" x="0" y="0" width="50" height="25" patternUnits="objectBoundingBox">
+              <image xlink:href="usflag.png" x="-15" y="-5" width="50" height="25"></image>
+            </pattern>
+             -->
+
+          <!--         <pattern id="usflag" x="0" y="0" width="25" height="25" patternUnits="userSpaceOnUse">
+              <rect width="10" height="3" fill="#BF0A30"/>
+              <rect width="10" height="4" fill="#ffffff"/>
+              <rect width="10" height="3" fill="#BF0A30"/>          
+            </pattern>
+     -->
+          <linearGradient id="gradBlue" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" style="stop-color:#005C99;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#0099FF;stop-opacity:1" />
+          </linearGradient>
+
+          <radialGradient id="gradient" cx="75%" cy="25%">
+            <stop offset="5%" stop-color="#ffd"></stop>
+            <stop offset="100%" stop-color="#ba9"></stop>
+          </radialGradient>
+        </defs>
+      </svg>
+
+      <main>
+        <h1></h1>
+        <h2>Click on a US Flag!</h2>
+        <p id="notes"></p>
+        <p>
+          Data from David Vine"s research for
+          <span>Base Nation book</span>
+        </p>
+      </main>
+    </div>
+
+    <script>
+      var title = d3.select("h1");
+      var notesP = d3.select("#notes");
+      var notes = d3.select("h2");
+
+      var width = 960,
+        height = 700,
+        margin = { top: 10, right: 10, bottom: 10, left: 10 },
+        originalScale = height / 2.0,
+        scale = originalScale,
+        translation = [width / 2, height / 2],
+        scaleChange,
+        rotation;
+
+      var svg = d3
+        .select("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr(
+          "transform",
+          "translate(" + margin.top + ", " + margin.left + ")"
+        );
+
+      var sphere = { type: "Sphere" };
+
+      var graticule = d3.geoGraticule();
+
+      var projection = d3
+        .geoOrthographic()
+        .scale(scale)
+        .translate(translation)
+        .clipAngle(90);
+
+      var path = d3.geoPath().projection(projection);
+
+      d3.queue()
+        .defer(d3.csv, "resource/USForeignMilitaryBases/bases.csv")
+        .defer(d3.csv, "resource/USForeignMilitaryBases/lilypads.csv")
+        .defer(d3.csv, "resource/USForeignMilitaryBases/usfunded.csv")
+        .defer(d3.json, "resource/USForeignMilitaryBases/110m.json")
+        .await(load);
+
+      function load(error, bases, lilypads, usfunded, world) {
+        if (error) throw error;
+
+        var countries = topojson.feature(world, world.objects.countries)
+          .features;
+        grid = graticule();
+
+        svg
+          .append("g")
+          .attr("id", "globegroup")
+          .append("path")
+          .datum(sphere)
+          .attr("class", "world")
+          .attr("id", "sphere")
+          .attr("fill", "url(#gradBlue)")
+          .attr("stroke", "#ccc")
+          .attr("stroke-width", 1)
+          .attr("z-index", 100);
+
+        svg
+          .selectAll(".grid")
+          .data([grid])
+          .enter()
+          .append("path")
+          .classed("world", true)
+          .classed("grid", true)
+          .attr("fill", "none")
+          .attr("stroke", "#ffd")
+          .attr("stroke-width", 1);
+
+        svg
+          .selectAll(".country")
+          .data(countries)
+          .enter()
+          .insert("path")
+          .attr("class", "countries")
+          .attr("class", "world")
+          .attr("id", function(d) {
+            return d.id;
+          })
+          .attr("fill", "#ccc")
+          .attr("stroke", "#fff")
+          .append("title")
+          .text(function(d) {
+            console.log(d);
+          }); //return countrycodesDict[d.id];
+
+        svg
+          .selectAll(".lilypad")
+          .data(lilypads)
+          .enter()
+          .append("circle")
+          .attr("fill", "red")
+          .attr("r", 4)
+          .append("title")
+          .text(function(d) {
+            return "Lilypad: " + d.name;
+          });
+
+        svg
+          .selectAll(".usfunded")
+          .data(usfunded)
+          .enter()
+          .append("circle")
+          .attr("fill", "red")
+          .attr("r", 2.5)
+          .append("title")
+          .text(function(d) {
+            return "US Funded: " + d.name;
+          });
+
+        svg
+          .selectAll(".base")
+          .data(bases)
+          .enter()
+          .append("circle")
+          .attr("stroke", "red")
+          .attr("fill", "#fff")
+          .attr("r", 5.5)
+          .append("title")
+          .text(function(d) {
+            return "Base: " + d.name;
+          });
+
+        svg
+          .select("#USA")
+          .attr("stroke", "#000")
+          .attr("stroke-width", 2);
+
+        svg.selectAll("circle").on("click", function(d) {
+          title.html(d.name + ", " + d.country);
+          notes.html("Notes");
+          notesP.html(d.notes);
+        });
+
+        reproject();
+
+        // Zoom and pan set-up
+
+        var zoom = d3
+          .zoom()
+          .scaleExtent([0.5, 4])
+          .on("zoom", zoomed);
+
+        d3.select("svg").call(zoom);
+
+        var previousScaleFactor = 1;
+
+        function zoomed() {
+          var dx = d3.event.sourceEvent.movementX;
+          var dy = d3.event.sourceEvent.movementY;
+
+          var event = d3.event.sourceEvent.type;
+
+          if (event === "wheel") {
+            scaleFactor = d3.event.transform.k;
+            scaleChange = scaleFactor - previousScaleFactor;
+            scale = scale + scaleChange * originalScale;
+            projection.scale(scale);
+            previousScaleFactor = scaleFactor;
+          }
+
+          reproject();
+        } // zoomed()
+      } // load()
+
+      d3.geoInertiaDrag(svg, reproject);
+
+      function reproject() {
+        var c = projection
+          .rotate()
+          .slice(0, 2)
+          .map(d => -d);
+        d3.selectAll("circle")
+          .attr("transform", function(d) {
+            return "translate(" + projection([d.lon, d.lat]) + ")";
+          })
+          .attr("opacity", function(d) {
+            // clipAngle(90)
+            return d3.geoDistance([+d.lon, +d.lat], c) < Math.PI / 2 ? 1 : 0;
+          });
+        d3.selectAll(".world").attr("d", path);
+      }
+    </script>
+  </body>
+</html>

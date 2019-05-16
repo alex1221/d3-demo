@@ -1,0 +1,87 @@
+{
+    "data": [
+        {
+            "value": 30,
+            "sourceX": "1",
+            "sourceY": "B",
+            "targetX": "2",
+            "targetY": "A"
+        },
+        {
+            "value": 40,
+            "sourceX": "1",
+            "sourceY": "C",
+            "targetX": "2",
+            "targetY": "B"
+        },
+        {
+            "value": 40,
+            "sourceX": "2",
+            "sourceY": "B",
+            "targetX": "3",
+            "targetY": "A"
+        },
+        {
+            "value": 30,
+            "sourceX": "2",
+            "sourceY": "A",
+            "targetX": "3",
+            "targetY": "C"
+        },
+        {
+            "value": 30,
+            "sourceX": "1",
+            "sourceY": "A",
+            "targetX": "2",
+            "targetY": " "
+        },
+        {
+            "value": 30,
+            "sourceX": "2",
+            "sourceY": "C",
+            "targetX": "3",
+            "targetY": " "
+        },
+        {
+            "value": 30,
+            "sourceX": "3",
+            "sourceY": "B",
+            "targetX": "3",
+            "targetY": " "
+        }
+    ],
+    "paths": [
+        {
+            "value": 30,
+            "sourceX": "1",
+            "sourceY": "B",
+            "targetX": "2",
+            "targetY": "A",
+            "name": "B vistors"
+        },
+        {
+            "value": 30,
+            "sourceX": "2",
+            "sourceY": "A",
+            "targetX": "3",
+            "targetY": "C",
+            "name": "B vistors"
+        },
+        {
+            "value": 30,
+            "sourceX": "1",
+            "sourceY": "C",
+            "targetX": "2",
+            "targetY": "B",
+            "name": "C vistors"
+        },
+        {
+            "value": 30,
+            "sourceX": "2",
+            "sourceY": "B",
+            "targetX": "3",
+            "targetY": "A",
+            "name": "C vistors"
+        }
+    ]
+}

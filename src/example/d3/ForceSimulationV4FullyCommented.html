@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Force Simulation V4- Fully Commented</title>
+    <style>
+      body {
+        margin: 0;
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+      }
+      .node circle {
+        stroke: #3a403d;
+        stroke-width: 0.5px;
+      }
+    </style>
+  </head>
+  <body>
+    <script src="js/d3.v4.min.js"></script>
+    <script>
+      // This block is heavily commented with the purpose of helping people learning D3 to understand each aspect of the code. There are probably more elegant ways to lay out the code but here goes.
+      //----------------------------------------------------------------------
+
+      //setting variables width and height to the browser window inner Width
+      // this is a DOM object- innerWidth is the width of browser window, window.width is the width of the device screen
+      // sizeDivisor will later effect the radius of each circle
+      // nodePadding will later effect how far apart each circle is to its neighbor
+      var width = window.innerWidth,
+        height = window.innerHeight,
+        sizeDivisor = 100,
+        nodePadding = 2.5;
+
+      // select the body and create a new element of the SVG, set the height
+      // and width attributes
+
+      var svg = d3
+        .select("body")
+        .append("svg")
+        .attr("width", width)
+        .attr("height", height);
+
+      //setting up the colors, scaleOrdinal will take a discrete input and assign it colors
+      // according to this array
+      var color = d3.scaleOrdinal([
+        "#66c2a5",
+        "#fc8d62",
+        "#8da0cb",
+        "#e78ac3",
+        "#a6d854",
+        "#ffd92f",
+        "#e5c494",
+        "#b3b3b3"
+      ]);
+
+      //There's a good explanation of this method here: https://d3indepth.com/force-layout/
+
+      var simulation = d3
+        .forceSimulation()
+        // .strength controls how close together they are pulled, unequal values will cause
+        // the bunch to pull at one axis or the other (try setting one to a different value)
+        //.x and .y control where the graphic starts originally on refresh and how the
+        // circles move when they are pulled on by the mouse
+        .force(
+          "forceX",
+          d3
+            .forceX()
+            .strength(0.2)
+            .x(width * 0.1)
+        )
+        .force(
+          "forceY",
+          d3
+            .forceY()
+            .strength(0.2)
+            .y(height * 0.1)
+        )
+        // this sets the center of the graphic to the center of the browser
+        .force(
+          "center",
+          d3
+            .forceCenter()
+            .x(width * 0.5)
+            .y(height * 0.5)
+        )
+        //this controls how quickly the circles settle down, more positive numbers make it
+        // more frantic and settle slower. more negative numbers make it settle faster
+        // forceManyBody applies the same strength force to all elements equally
+        // without this the circles move much faster at the beginning
+        .force("charge", d3.forceManyBody().strength(-50));
+
+      //pull in the csv data and check for an error and set the name of the
+      // data to "graph",  types is a function that appears later and is being passed here
+
+      d3.csv("resource/ForceSimulationV4FullyCommented/forceSimulation.csv", types, function(error, graph) {
+        if (error) throw error;
+        originalgraph = graph;
+        console.log("original graph", originalgraph);
+
+        // sort the nodes so that the bigger ones are at the back
+        // size is set later by taking the gdp of each country and dividing it by the sizeDivisor
+        // I think this starts by calculating the difference in size between the first two elements,
+        // then sorts those two. the smaller is then compared to the next element and sorted and so on
+        graph = graph.sort(function(a, b) {
+          return b.size - a.size;
+        });
+
+        //update the simulation based on the data
+        simulation
+          //applies the data in graph to the nodes of simulation defined above
+          .nodes(graph)
+          //this collision control could be up in the original simulation declaration
+          .force(
+            "collide",
+            d3
+              .forceCollide()
+              // this strength controls how much overlap there is at the
+              //beginning of the simulation, bigger # = less overlap (more bounce )
+              .strength(1)
+              //d.radius is defined below where d.size is defined, the
+              // circles are repelled just to the point of their own radius +
+              // the node padding
+              .radius(function(d) {
+                return d.radius + nodePadding;
+              })
+              //more iterations causes it to settle down faster
+              .iterations(1)
+          )
+          // not sure what this does?
+          .on("tick", function(d) {
+            node
+              .attr("cx", function(d) {
+                return d.x;
+              })
+              .attr("cy", function(d) {
+                return d.y;
+              });
+          });
+
+        // here we create the circles for each node in "graph"
+        var node = svg
+          .append("g")
+          .attr("class", "node")
+          .selectAll("circle")
+          .data(graph)
+          .enter()
+          .append("circle")
+          .attr("r", function(d) {
+            return d.radius;
+          })
+          // there are a descrete number of continents so each one is assigned a color
+          .attr("fill", function(d) {
+            return color(d.continent);
+          })
+          .attr("cx", function(d) {
+            return d.x;
+          })
+          .attr("cy", function(d) {
+            return d.y;
+          })
+          //this calls the three drag functions below
+          .call(
+            d3
+              .drag()
+              .on("start", dragstarted)
+              .on("drag", dragged)
+              .on("end", dragended)
+          );
+      });
+
+      function dragstarted(d) {
+        // the alphaTarget parameter controls how frantic simulation is
+        // both when the dragging starts and when the dragging ends. bigger # = more frantic
+        // not sure how this parameter works exactly?
+        if (!d3.event.active) simulation.alphaTarget(0.03).restart();
+        d.fx = d.x;
+        d.fy = d.y;
+      }
+
+      function dragged(d) {
+        d.fx = d3.event.x;
+        d.fy = d3.event.y;
+      }
+
+      function dragended(d) {
+        if (!d3.event.active) simulation.alphaTarget(0.03);
+        d.fx = null;
+        d.fy = null;
+      }
+
+      function types(d) {
+        //makes gdp into an integer
+        d.gdp = +d.gdp;
+        //defines d.size
+        d.size = +d.gdp / sizeDivisor;
+        //without this line a lot of the countries are so small they don't show up at all
+        // this sets a minimum size of 3 for everything
+        d.size < 3 ? (d.radius = 3) : (d.radius = d.size);
+        return d;
+      }
+    </script>
+  </body>
+</html>

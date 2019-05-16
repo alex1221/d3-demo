@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Rainbow Pack Square</title>
+    <style>
+      body {
+        margin: 0;
+        background: #333;
+        overflow: hidden;
+      }
+
+      circle {
+        stroke: #000;
+        stroke-width: 1.5px;
+      }
+    </style>
+  </head>
+  <body>
+    <svg width="1050" height="1500"><g transform="translate(525,750)"></g></svg>
+    <script src="js/d3.v4.0.0-alpha.33.min.js"></script>
+    <script>
+      var svg = d3.select("svg"),
+        width = +svg.attr("width"),
+        height = +svg.attr("height"),
+        size = Math.max(width, height);
+
+      var color = d3.scaleRainbow().domain([0, 2 * Math.PI]);
+
+      var circles = d3
+        .packSiblings(
+          d3
+            .range(2000)
+            .map(d3.randomUniform(8, 26))
+            .map(function(r) {
+              return { r: r };
+            })
+        )
+        .filter(function(d) {
+          return -500 < d.x && d.x < 500 && -500 < d.y && d.y < 500;
+        });
+
+      svg
+        .select("g")
+        .selectAll("rect")
+        .data(circles)
+        .enter()
+        .append("rect")
+        .style("fill", function(d) {
+          return color((d.angle = Math.atan2(d.y, d.x)));
+        })
+        .attr("x", function(d) {
+          return d.r / 2 + Math.cos(d.angle) * (size / Math.SQRT2 + 30);
+        })
+        .attr("y", function(d) {
+          return d.r / 2 + Math.sin(d.angle) * (size / Math.SQRT2 + 30);
+        })
+        .attr("width", function(d) {
+          return d.r - 0.25;
+        })
+        .attr("height", function(d) {
+          return d.r - 0.25;
+        })
+        .transition()
+        .ease(d3.easeCubicOut)
+        .delay(function(d) {
+          return Math.sqrt(d.x * d.x + d.y * d.y) * 5;
+        })
+        .duration(1000)
+        .attr("x", function(d) {
+          return d.x;
+        })
+        .attr("y", function(d) {
+          return d.y;
+        });
+    </script>
+  </body>
+</html>

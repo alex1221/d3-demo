@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>force multiple centers</title>
+    <style>
+      .links line {
+        stroke: #999;
+        stroke-opacity: 0.6;
+      }
+
+      .nodes circle {
+        stroke: #fff;
+        stroke-width: 1.5px;
+      }
+    </style>
+  </head>
+  <body>
+    <svg width="960" height="600"></svg>
+    <script src="js/d3.v4.min.js"></script>
+    <script>
+      var svg = d3.select("svg"),
+        width = +svg.attr("width"),
+        height = +svg.attr("height");
+
+      var color = d3.scaleOrdinal(d3.schemeCategory10);
+
+      var nodes = d3.range(100).map(function() {
+        var node = {};
+        node.groupA = Math.floor(Math.random() * 5);
+        node.groupB = Math.floor(Math.random() * 3);
+        return node;
+      });
+
+      var fociA = [
+        { x: 200, y: 250 },
+        { x: 350, y: 250 },
+        { x: 500, y: 250 },
+        { x: 650, y: 250 },
+        { x: 800, y: 250 }
+      ];
+      var fociB = [{ x: 400, y: 100 }, { x: 600, y: 300 }, { x: 100, y: 100 }];
+
+      var simulation = d3
+        .forceSimulation()
+        .force(
+          "link",
+          d3.forceLink().id(function(d) {
+            return d.id;
+          })
+        )
+        .force("charge", d3.forceManyBody())
+        .force("center", d3.forceCenter(width / 2, height / 2));
+
+      var node = svg
+        .append("g")
+        .attr("class", "nodes")
+        .selectAll("circle")
+        .data(nodes)
+        .enter()
+        .append("circle")
+        .attr("r", 5)
+        .attr("fill", function(d) {
+          return color(d.groupA);
+        })
+        .call(
+          d3
+            .drag()
+            .on("start", dragstarted)
+            .on("drag", dragged)
+            .on("end", dragended)
+        );
+
+      node.append("title").text(function(d) {
+        return d.id;
+      });
+
+      simulation.nodes(nodes).on("tick", ticked);
+
+      var current = "groupA";
+      var buttons = svg
+        .selectAll(null)
+        .data(["groupA", "groupB"])
+        .enter()
+        .append("g")
+        .attr("transform", function(d, i) {
+          return "translate(" + (i * 120 + 50) + "," + 50 + ")";
+        })
+        .on("click", function(d) {
+          if (d != current) {
+            current = d;
+            simulation.alpha(0.228);
+            simulation.restart();
+          }
+        })
+        .style("cursor", "pointer");
+
+      buttons
+        .append("rect")
+        .attr("width", 100)
+        .attr("height", 50)
+        .attr("fill", "lightgrey");
+
+      buttons
+        .append("text")
+        .text(function(d) {
+          return d;
+        })
+        .attr("dy", 30)
+        .attr("dx", 50)
+        .style("text-anchor", "middle");
+
+      function ticked() {
+        var k = this.alpha() * 0.3;
+
+        // nudge nodes to proper foci:
+        if (current == "groupA") {
+          nodes.forEach(function(n, i) {
+            n.y += (fociA[n.groupA].y - n.y) * k;
+            n.x += (fociA[n.groupA].x - n.x) * k;
+          });
+        } else {
+          nodes.forEach(function(n, i) {
+            n.y += (fociB[n.groupB].y - n.y) * k;
+            n.x += (fociB[n.groupB].x - n.x) * k;
+          });
+        }
+
+        node
+          .attr("cx", function(d) {
+            return d.x;
+          })
+          .attr("cy", function(d) {
+            return d.y;
+          });
+      }
+
+      function dragstarted(d) {
+        if (!d3.event.active) simulation.alphaTarget(0.3).restart();
+        d.fx = d.x;
+        d.fy = d.y;
+      }
+
+      function dragged(d) {
+        d.fx = d3.event.x;
+        d.fy = d3.event.y;
+      }
+
+      function dragended(d) {
+        if (!d3.event.active) simulation.alphaTarget(0);
+        d.fx = null;
+        d.fy = null;
+      }
+    </script>
+  </body>
+</html>

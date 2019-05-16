@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Bonfire</title>
+    <style>
+      svg {
+        height: 500px;
+        width: 500px;
+        border: 1px solid lightgray;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="viz">
+      <svg class="main"></svg>
+    </div>
+    <script src="js/d3.v4.min.js"></script>
+    <script src="js/Bonfire/collide.js"></script>
+    <script>
+      var filter = d3
+        .select("svg")
+        .append("defs")
+        .append("filter")
+        .attr("id", "gooeyCodeFilter");
+      filter
+        .append("feGaussianBlur")
+        .attr("id", "gaussblurrer")
+        .attr("in", "SourceGraphic")
+        .attr("stdDeviation", 6)
+        .attr("color-interpolation-filters", "sRGB")
+        .attr("result", "blur");
+      filter
+        .append("feColorMatrix")
+        .attr("in", "blur")
+        .attr("mode", "matrix")
+        .attr("values", "1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 34 -7")
+        .attr("result", "gooey");
+
+      var start = 0;
+
+      var randomPoints = d3.range(500).map(function(d, i) {
+        return { value: Math.random(), key: i };
+      });
+
+      var currentTick = 500;
+
+      var networkCenter = d3
+        .forceCenter()
+        .x(250)
+        .y(250);
+
+      var forceX = d3
+        .forceX(function(d) {
+          return 100;
+        })
+        .strength(0.03);
+
+      var forceY = d3
+        .forceY(function(d) {
+          return d.value * 500;
+        })
+        .strength(0.5);
+
+      var collide = d3
+        .bboxCollide(function(d, i) {
+          return [[-d.value * 20, -d.value * 10], [d.value * 20, d.value * 10]];
+        })
+        .strength(0.5)
+        .iterations(1);
+
+      var color = d3.scaleOrdinal(["#8a2b57", "#b13e1f", "#aa8d0f", "#b67221"]);
+
+      d3.select("svg.main")
+        .append("g")
+        .attr("class", "viz")
+        .style("filter", "url(#gooeyCodeFilter)");
+      function step(timestamp) {
+        if (!start) start = timestamp;
+        var progress = timestamp - start;
+        particles(progress);
+        window.requestAnimationFrame(step);
+      }
+
+      window.requestAnimationFrame(step);
+
+      function particles(progress) {
+        var nodeEnter = d3
+          .select("g.viz")
+          .selectAll("g.node")
+          .data(randomPoints, function(d) {
+            return d.key;
+          })
+          .enter()
+          .append("g")
+          .attr("class", "node");
+
+        var nodeExit = d3
+          .select("g.viz")
+          .selectAll("g.node")
+          .data(randomPoints, function(d) {
+            return d.key;
+          })
+          .exit()
+          .remove();
+
+        nodeEnter
+          .append("rect")
+          .attr("class", "base")
+          .style("fill-opacity", 1)
+          .style("fill", function(d, i) {
+            return d3.color(color(d.key)).brighter(1);
+          });
+
+        var force = d3
+          .forceSimulation(randomPoints)
+          .velocityDecay(0.6)
+          .force("center", networkCenter)
+          .force("x", forceX)
+          .force("y", forceY)
+          .force("collide", collide)
+          .on("tick", updateNetwork)
+          .stop();
+
+        force.tick();
+
+        d3.selectAll("rect")
+          .attr("width", function(d) {
+            return d.value * 40;
+          })
+          .attr("height", function(d) {
+            return d.value * 20;
+          })
+          .attr("x", function(d) {
+            return d.x + -d.value * 20;
+          })
+          .attr("y", function(d) {
+            return d.y + -d.value * 10;
+          });
+
+        randomPoints.forEach(function(d) {
+          d.value = d.value - 0.005;
+        });
+
+        randomPoints = randomPoints.filter(function(d) {
+          return d.value > 0;
+        });
+
+        randomPoints.push({
+          value: 1.25,
+          x: Math.random() * 300 + 100,
+          y: 750,
+          key: (currentTick += 1)
+        });
+
+        function updateNetwork() {}
+      }
+    </script>
+  </body>
+</html>

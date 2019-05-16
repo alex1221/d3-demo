@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Voronoi Update Pattern</title>
+    <style>
+      body {
+        margin: 0;
+      }
+      .voronoi {
+        fill: #3a403d;
+        stroke: #fff;
+        stroke-width: 2px;
+      }
+      .dot {
+        fill: #fff;
+      }
+    </style>
+  </head>
+  <body>
+    <script src="js/d3.v4.min.js"></script>
+    <script>
+      var alphabet = "abcdefghijklmnopqrstuvwxyz".split("");
+
+      var width = window.innerWidth,
+        height = window.innerHeight;
+
+      var x = d3
+        .scaleLinear()
+        .domain([0, 100])
+        .range([0, width]);
+      var y = d3
+        .scaleLinear()
+        .domain([0, 100])
+        .range([height, 0]);
+
+      var svg = d3
+        .select("body")
+        .append("svg")
+        .attr("width", width)
+        .attr("height", height);
+
+      var g = svg
+        .append("g")
+        .attr("width", width)
+        .attr("height", height);
+
+      function redraw(data) {
+        // transition
+        var t = d3.transition().duration(750);
+
+        // voronoi tesselation
+        var voronoi = d3
+          .voronoi()
+          .x(function(d) {
+            return x(d.x);
+          })
+          .y(function(d) {
+            return y(d.y);
+          })
+          .extent([[0, 0], [width, height]]);
+
+        // elements
+        var circle, voronoiGroup;
+
+        // JOIN
+        voronoiGroup = g
+          .selectAll(".voronoi")
+          .data(voronoi(data).polygons(), function(d) {
+            return d.data.name;
+          });
+
+        circle = g.selectAll(".dot").data(data, function(d) {
+          return d.name;
+        });
+
+        // EXIT
+        voronoiGroup.exit().remove();
+
+        circle.exit().remove();
+
+        // UPDATE
+        voronoiGroup
+          .transition(t)
+          .attr("d", function(d) {
+            return d ? "M" + d.join("L") + "Z" : null;
+          })
+          .style("fill", "#3a403d");
+
+        circle
+          .transition(t)
+          .attr("cx", function(d) {
+            return x(d.x);
+          })
+          .attr("cy", function(d) {
+            return y(d.y);
+          });
+
+        // ENTER
+        voronoiGroup
+          .enter()
+          .append("path")
+          .attr("class", "voronoi")
+          .attr("d", function(d) {
+            return d ? "M" + d.join("L") + "Z" : null;
+          })
+          .style("fill", "#45b29d");
+
+        circle
+          .enter()
+          .append("circle")
+          .attr("class", "dot")
+          .attr("r", 5)
+          .attr("cx", function(d) {
+            return x(d.x);
+          })
+          .attr("cy", function(d) {
+            return y(d.y);
+          });
+      }
+
+      d3.interval(function() {
+        redraw(randomizeData());
+      }, 1500);
+
+      /*FUNCTIONS*/
+
+      function randomizeData() {
+        var d0 = shuffle(alphabet),
+          d1 = [],
+          d2 = [];
+        for (var i = 0; i < random(1, alphabet.length); i++) {
+          d1.push(d0[i]);
+        }
+        d1.forEach(function(d) {
+          d2.push({ name: d, x: random(0, 100), y: random(0, 100) });
+        });
+        return d2;
+      }
+
+      function random(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+      }
+
+      function shuffle(array) {
+        var m = array.length,
+          t,
+          i;
+
+        // While there remain elements to shuffle…
+        while (m) {
+          // Pick a remaining element…
+          i = Math.floor(Math.random() * m--);
+
+          // And swap it with the current element.
+          t = array[m];
+          array[m] = array[i];
+          array[i] = t;
+        }
+
+        return array;
+      }
+    </script>
+  </body>
+</html>

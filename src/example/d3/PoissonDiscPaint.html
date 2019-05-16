@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Poisson-Disc Paint</title>
+    <style>
+      body {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+      }
+      svg {
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        top: 0;
+        left: 0;
+        pointer-events: all;
+      }
+      canvas {
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        top: 0;
+        left: 0;
+        pointer-events: none;
+      }
+
+      circle.data {
+        stroke: #222;
+        stroke-opacity: 0.4;
+      }
+
+      g#mouse circle {
+        stroke: #111;
+        fill: none;
+      }
+    </style>
+  </head>
+  <body onload="load()">
+    <svg>
+      <defs>
+        <filter id="dropshadow" x="0" y="0" width="200%" height="200%">
+          <feOffset result="offOut" in="SourceAlpha" dx="1.25" dy="1.25" />
+          <feGaussianBlur result="blurOut" in="offOut" stdDeviation="1.25" />
+          <feBlend in="SourceGraphic" in2="blurOut" mode="normal" />
+        </filter>
+      </defs>
+    </svg>
+    <canvas></canvas>
+    <script src="js/d3.v4.min.js"></script>
+    <script>
+      function load() {
+        var bbox = d3
+          .select("body")
+          .node()
+          .getBoundingClientRect();
+        var width = bbox.width - 10 || 960,
+          height = bbox.height - 10 || 500;
+        if (width < 960) width = 960;
+        if (height < 500) height = 500;
+        var grid;
+        var n = 10000;
+        var r = 8;
+        var paintFactor = 0.02;
+        var sample = poissonDiscSampler(width, height, r);
+
+        var mouseR = 50;
+        var mousePos = { x: width / 2, y: height / 2 };
+
+        var svg = d3
+          .select("svg")
+          .attr("width", width)
+          .attr("height", height);
+
+        var circleg = svg.append("g").attr("transform", "translate(13,13)");
+        //   .attr("filter", "url(#dropshadow)")
+
+        var mouseg = svg
+          .append("g")
+          .attr("id", "mouse")
+          .style("pointer-events", "none")
+          .append("circle");
+
+        var colorScale = d3.scaleSequential(d3.interpolateMagma);
+        colorScale.domain(colorScale.domain().reverse());
+
+        var voronoi = d3.voronoi();
+
+        var samples = [];
+        var s;
+        for (var i = 0; i < n; i++) {
+          s = sample(r);
+          if (!s) continue;
+          samples.push({
+            id: i,
+            x: s[0],
+            y: s[1],
+            v: 0
+          });
+        }
+
+        var mousedown = false;
+
+        const quadtree = d3
+          .quadtree()
+          .x(d => d.x)
+          .y(d => d.y)
+          .addAll(samples);
+        //  console.log(quadtree.data())
+
+        renderCircles();
+        renderMouse();
+
+        function renderCircles() {
+          var circles = circleg
+            .selectAll("circle.data")
+            //   .data(samples)
+            .data(samples, function(d) {
+              return d.id;
+            });
+
+          //   circles.exit().remove();
+          var circlesE = circles
+            .enter()
+            .append("circle")
+            .classed("data", true)
+            .attr("cx", function(d) {
+              return d.x;
+            })
+            .attr("cy", function(d) {
+              return d.y;
+            })
+            .attr("r", function(d) {
+              return 3;
+            });
+
+          circles = circlesE.merge(circles);
+
+          circles.attr("fill", function(d) {
+            return colorScale(d.v);
+          });
+        }
+
+        function renderMouse() {
+          mouseg
+            .attr("cx", mousePos.x)
+            .attr("cy", mousePos.y)
+            .attr("r", mouseR);
+        }
+        svg.on("mousemove", function() {
+          var mp = d3.mouse(svg.node());
+          mousePos.x = mp[0];
+          mousePos.y = mp[1];
+          renderMouse();
+        });
+
+        function exit() {
+          console.log("exit");
+          mousedown = false;
+        }
+
+        var lastK = 1;
+        var zoom = d3
+          .zoom()
+          .on("zoom", function() {
+            var pos = d3.mouse(svg.node());
+            if (lastK !== d3.event.transform.k) {
+              mousedown = false;
+            } else {
+              var selected = fixedRadiusSearch(mouseR, pos);
+              selected.forEach(function(d) {
+                d.data.v += paintFactor;
+              });
+              //     var ids = selected.map(function(d) { return d.data.id})
+              //     renderCircles();
+              svg
+                .selectAll("circle.data")
+                .filter(function(d) {
+                  return d.selected;
+                })
+                .attr("fill", function(d) {
+                  return colorScale(d.v);
+                });
+            }
+            mouseR = 50 * d3.event.transform.k;
+            lastK = d3.event.transform.k;
+            mousePos.x = pos[0];
+            mousePos.y = pos[1];
+            renderMouse();
+          })
+          .on("start", function() {
+            mousedown = true;
+          })
+          .on("end", function() {
+            mousedown = false;
+          });
+
+        svg.call(zoom);
+        var body = d3.select("body").on("click", function() {
+          console.log(JSON.stringify(samples));
+        });
+
+        // d3.timer(function(elapsed) {
+        //   if(mousedown) {
+
+        //   }
+        // });
+
+        // Based on https://www.jasondavies.com/poisson-disc/
+        function poissonDiscSampler(width, height, radius) {
+          var k = 30; // maximum number of samples before rejection
+          var radius2 = radius * radius;
+          var R = 3 * radius2;
+          var cellSize = radius * Math.SQRT1_2;
+          var gridWidth = Math.ceil(width / cellSize);
+          var gridHeight = Math.ceil(height / cellSize);
+          console.log("grid", gridWidth, gridHeight);
+          grid = new Array(gridWidth * gridHeight);
+          var queue = [];
+          var queueSize = 0;
+          var sampleSize = 0;
+
+          return function(newRadius) {
+            radius2 = newRadius * newRadius;
+            R = 3 * radius2;
+            cellSize = radius * Math.SQRT1_2;
+
+            if (!sampleSize)
+              return sample(Math.random() * width, Math.random() * height);
+
+            // Pick a random existing sample and remove it from the queue.
+            while (queueSize) {
+              var i = (Math.random() * queueSize) | 0,
+                s = queue[i];
+
+              // Make a new candidate between [radius, 2 * radius] from the existing sample.
+              for (var j = 0; j < k; ++j) {
+                var a = 2 * Math.PI * Math.random(),
+                  rad = Math.sqrt(Math.random() * R + radius2),
+                  x = s[0] + rad * Math.cos(a) * Math.random(),
+                  y = s[1] + rad * Math.sin(a) * Math.random();
+
+                // Reject candidates that are outside the allowed extent,
+                // or closer than 2 * radius to any existing sample.
+                if (0 <= x && x < width && 0 <= y && y < height && far(x, y)) {
+                  //           points.push([x,y])
+                  return sample(x, y);
+                }
+              }
+
+              queue[i] = queue[--queueSize];
+              queue.length = queueSize;
+            }
+          };
+
+          function far(x, y) {
+            var i = (x / cellSize) | 0,
+              j = (y / cellSize) | 0,
+              i0 = Math.max(i - 2, 0),
+              j0 = Math.max(j - 2, 0),
+              i1 = Math.min(i + 3, gridWidth),
+              j1 = Math.min(j + 3, gridHeight);
+
+            for (j = j0; j < j1; ++j) {
+              var o = j * gridWidth;
+              for (i = i0; i < i1; ++i) {
+                if ((s = grid[o + i])) {
+                  var s,
+                    dx = s[0] - x,
+                    dy = s[1] - y;
+                  if (dx * dx + dy * dy < radius2) return false;
+                }
+              }
+            }
+
+            return true;
+          }
+
+          function sample(x, y) {
+            var s = [x, y];
+            queue.push(s);
+            grid[gridWidth * ((y / cellSize) | 0) + ((x / cellSize) | 0)] = s;
+            ++sampleSize;
+            ++queueSize;
+            return s;
+          }
+        }
+
+        // from http://blockbuilder.org/armollica/2d3fa2c5d61c794bc3fab82166906813
+        // Find all points in `quadtree` that are within radius `r` of `point`
+        function fixedRadiusSearch(r, point) {
+          var cx = point[0],
+            cy = point[1];
+          var selected = [];
+          quadtree.visit(function(node, x0, y0, x1, y1) {
+            if (!node.length) {
+              node.scanned = true;
+              node.data.selected = pointInCircle(
+                [node.data.x, node.data.y],
+                [cx, cy, r]
+              );
+              if (node.data.selected) selected.push(node);
+              //       console.log("node", node, distance([node.data.x, node.data.y], point))
+            }
+            return rectangleOutsideCircle([[x0, y0], [x1, y1]], [cx, cy, r]);
+          });
+          return selected;
+        }
+
+        function rectangleOutsideCircle(rect, circle) {
+          var x0 = rect[0][0],
+            y0 = rect[0][1],
+            x1 = rect[1][0],
+            y1 = rect[1][1];
+
+          // Rectangle is inside circle if...
+
+          // ...circle center is inside rectangle
+          var isInside = pointInRectangle(circle, [[x0, y0], [x1, y1]])
+            ? true
+            : // ...any of the rectangle's corners is inside the circle
+            pointInCircle([x0, y0], circle)
+            ? true
+            : pointInCircle([x0, y1], circle)
+            ? true
+            : pointInCircle([x1, y1], circle)
+            ? true
+            : pointInCircle([x1, y0], circle)
+            ? true
+            : // ...any of the rectangle's sides intersects the circle
+            lineIntersectsCircle([[x0, y0], [x1, y0]], circle)
+            ? true
+            : lineIntersectsCircle([[x1, y0], [x1, y1]], circle)
+            ? true
+            : lineIntersectsCircle([[x1, y1], [x0, y1]], circle)
+            ? true
+            : lineIntersectsCircle([[x0, y1], [x0, y0]], circle)
+            ? true
+            : false; // ...otherwise it's outside
+          return !isInside;
+        }
+
+        function pointInRectangle(point, rect) {
+          var x = point[0],
+            y = point[1],
+            x0 = rect[0][0],
+            y0 = rect[0][1],
+            x1 = rect[1][0],
+            y1 = rect[1][1];
+          return x0 <= x && x <= x1 && y0 <= y && y <= y1;
+        }
+
+        function pointInCircle(point, circle) {
+          var x = point[0],
+            y = point[1],
+            cx = circle[0],
+            cy = circle[1],
+            r = circle[2];
+          return distance([cx, cy], [x, y]) <= r;
+        }
+
+        // Euclidean distance between two points
+        function distance(p0, p1) {
+          var x0 = p0[0],
+            y0 = p0[1],
+            x1 = p1[0],
+            y1 = p1[1];
+          return Math.sqrt(Math.pow(x1 - x0, 2) + Math.pow(y1 - y0, 2));
+        }
+
+        function clamp(d, min, max) {
+          return d < min ? min : d > max ? max : d;
+        }
+
+        function lineIntersectsCircle(line, circle) {
+          // Taken mostly from http://stackoverflow.com/a/1088058
+
+          var x0 = line[0][0],
+            y0 = line[0][1],
+            x1 = line[1][0],
+            y1 = line[1][1],
+            cx = circle[0],
+            cy = circle[1],
+            r = circle[2];
+
+          var lineDistance = distance([x0, y0], [x1, y1]);
+
+          // [dx, dy] = direction vector of line
+          var dx = (x1 - x0) / lineDistance,
+            dy = (y1 - y0) / lineDistance;
+
+          // Parametric equation for a line:
+          // x = dx*t + x0
+          // y = dy*t + y0
+          // where 0 <= t <= 1
+
+          // Compute parameter t for closest point to circle center
+          // (clamp t to be between line segment end points)
+          var t = clamp(dx * (cx - x0) + dy * (cy - y0), 0, lineDistance);
+
+          // Compute coordinates of point on line closest to circle center
+          var px = t * dx + x0,
+            py = t * dy + y0;
+
+          // Get distance of this point from center
+          var projectionDistance = distance([cx, cy], [px, py]);
+
+          return projectionDistance <= r;
+        }
+      }
+    </script>
+  </body>
+</html>

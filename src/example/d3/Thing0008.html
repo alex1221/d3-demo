@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>thing 0008</title>
+    <style>
+      body {
+        margin: 0;
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas></canvas>
+    <script src="js/d3.v4.min.js"></script>
+    <script>
+      var width = 960;
+      var height = 500;
+
+      var num = 5000;
+      var frames = num / 5;
+      var opacity = 0.05;
+      var linewidth = 5;
+
+      var canvas = d3.select("canvas").node();
+      canvas.width = width;
+      canvas.height = height;
+      ctx = canvas.getContext("2d");
+
+      ctx.globalCompositeOperation = "soft-light";
+
+      // colors stolen from Nadieh's block http://bl.ocks.org/nbremer/5cd07f2cb4ad202a9facfbd5d2bc842e
+      var colors = [
+        //["#2c7bb6", "#00a6ca","#00ccbc","#f9d057","#f29e2e","#e76818"];
+        "#2c7bb6",
+        "#00a6ca",
+        "#00ccbc",
+        "#90eb9d",
+        "#ffff8c",
+        "#f9d057",
+        "#f29e2e",
+        "#e76818",
+        "#d7191c"
+      ].reverse();
+      var colorArray = colors.map(function(c) {
+        var rgb = d3.rgb(c);
+        return [rgb.r, rgb.g, rgb.b];
+      });
+      var data = d3.range(num).map(function(i) {
+        return {
+          x1: 50,
+          x2: 910,
+          y1: 50 + (i / num) * 300 + Math.random() * 100,
+          y2: 50 + (300 - (i / num) * 300) + Math.random() * 100,
+          color: colorArray[Math.floor((i / num) * 8 + Math.random() * 2)]
+        };
+      });
+      console.log(data);
+
+      ctx.fillStyle = "rgba(10,10,10,1)";
+      ctx.fillRect(0, 0, width, height);
+
+      ctx.lineWidth = linewidth;
+
+      var frame = 0;
+      var now = +new Date();
+      d3.timer(function(elapsed) {
+        var diff = +new Date() - now;
+
+        if (frame >= frames - 1) {
+          if (diff < 2500) return;
+          frame = 0;
+          ctx.clearRect(0, 0, width, height);
+          ctx.fillStyle = "rgba(10,10,10,1)";
+          ctx.fillRect(0, 0, width, height);
+        } else {
+          frame += 1;
+          now = +new Date();
+        }
+
+        var drawings = data.slice(frame * 5, frame * 5 + 5);
+        var d;
+        for (var k = 0; k < 5; k++) {
+          d = drawings[k];
+          // console.log("d",k, d.strokes.length)
+          ctx.strokeStyle = "rgba(" + d.color + "," + opacity + ")";
+
+          ctx.beginPath();
+          ctx.moveTo(d.x1, d.y1);
+          ctx.lineTo(d.x2, d.y2);
+          ctx.stroke();
+        }
+      });
+    </script>
+  </body>
+</html>

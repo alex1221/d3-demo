@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>DS April, Code 3</title>
+  </head>
+  <body>
+    <svg></svg>
+    <script src="js/d3.v4.min.js"></script>
+    <script src="js/lodash.min.js"></script>
+    <script type="text/javascript" src="js/chroma.min.js"></script>
+    <script>
+      var width = 800;
+      var centerSize = 100;
+      var answerHeight = 200;
+      var radius = 3;
+      var margin = { left: 20, top: 20 };
+      var svg = d3
+        .select("svg")
+        .attr("width", width)
+        .attr("height", answerHeight * 3)
+        .append("g")
+        .attr("transform", "translate(" + [width / 2, 0] + ")");
+      var circles;
+
+      // scales
+      var experienceScale = d3.scaleLinear();
+      var xScale = d3.scaleLinear().range([0, width / 2 - centerSize]);
+      var colorScale = chroma.scale(["#e68fc3", "#7386e8", "#53c3ac"]);
+      // force simulation
+      var simulation = d3
+        .forceSimulation()
+        .force("x", d3.forceX().x(d => d.focusX))
+        .force("y", d3.forceY().y(d => d.focusY))
+        //     	.force('charge', d3.forceManyBody().strength(30))
+        .force("collide", d3.forceCollide().radius(radius))
+        //     	.force('center', d3.forceCenter().y(0))
+        .on("tick", onTick)
+        .stop();
+
+      // question
+      var frustration =
+        "What is your biggest frustration with doing data visualization in your job?";
+      var experience = "How many years have you been doing data visualization?";
+      var intended =
+        "Did you set out to work in data visualization or did you fall into it?";
+      var question = "What focus is data visualization in your work?";
+      var answerMap = {
+        "Data visualization is the focus of my job": [0, "primary"],
+        "Data visualization is an important secondary part of my job but not the focus": [
+          1,
+          "secondary"
+        ],
+        "Data visualization is one of several other things I do in my job but not a primary or secondary part of my role": [
+          2,
+          "not focus"
+        ]
+      };
+      var intendedMap = {
+        "Ended up doing data visualization as a requirement of the job": false,
+        "Intended to work in data visualization": true
+      };
+
+      // load data
+      d3.csv("resource/DSAprilCode3/survey.csv", survey => {
+        var xDomain = d3.extent(survey, d => ++d[experience]);
+        experienceScale.domain(xDomain);
+
+        // get the data ready
+        var data = _.map(survey, (d, i) => {
+          var [order, answer] = answerMap[d[question]];
+          var exp = experienceScale(d[experience]);
+          var frustrated = !!d[frustration];
+          var focusX = (frustrated ? -1 : 1) * xScale(exp);
+          focusX += ((frustrated ? -1 : 1) * centerSize) / 3;
+          var focusY = (order + 0.5) * answerHeight;
+          var intend = intendedMap[d[intended]];
+
+          return {
+            frustrated,
+            intended: intend,
+            answer,
+            focusX,
+            x: focusX,
+            focusY,
+            y:
+              focusY +
+              (intend ? -1 : 1) * _.random(centerSize / 4, centerSize / 2),
+            color: colorScale(exp),
+            data: d,
+            id: i
+          };
+        });
+
+        // draw the circles
+        circles = svg
+          .selectAll("circle")
+          .data(data, d => d.id)
+          .enter()
+          .append("circle")
+          .attr("r", radius)
+          .attr("fill", d => (d.intended ? d.color : "#fff"))
+          .attr("stroke", d => d.color)
+          .attr("stroke-width", 2);
+
+        simulation
+          .nodes(data)
+          .alpha(0.9)
+          .restart();
+      });
+
+      function onTick() {
+        circles.attr("cx", d => d.x).attr("cy", d => d.y);
+      }
+    </script>
+  </body>
+</html>

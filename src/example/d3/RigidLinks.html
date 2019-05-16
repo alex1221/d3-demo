@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>rigid links</title>
+    <style>
+      line.link {
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <script src="js/d3.v3.min.js"></script>
+    <script>
+      var width = 960,
+        height = 500;
+
+      var nodes = d3.range(5).map(function(i) {
+        return {
+          index: i,
+          radius: 15,
+          px: width / 2 + Math.random() * 10,
+          py: height / 2 + Math.random() * 10
+        };
+      });
+      var links = [
+        {
+          source: nodes[0],
+          target: nodes[1],
+          type: "rigid",
+          distance: 100
+        },
+        {
+          source: nodes[1],
+          target: nodes[2],
+          type: "rigid",
+          distance: 50
+        },
+        {
+          source: nodes[2],
+          target: nodes[3],
+          type: "rigid",
+          distance: 50
+        },
+        {
+          source: nodes[3],
+          target: nodes[0],
+          type: "rigid",
+          distance: 200
+        }
+      ];
+
+      var color = d3.scale.category10();
+
+      var force = d3.layout
+        .force()
+        .gravity(0.05)
+        .charge(function(d) {
+          if (d.type === "rigid") {
+            return -100;
+          }
+          return -30;
+        })
+
+        .nodes(nodes.concat(links))
+        .size([width, height]);
+
+      force.start();
+
+      var svg = d3
+        .select("body")
+        .append("svg")
+        .attr("width", width)
+        .attr("height", height);
+
+      svg
+        .selectAll("circle")
+        .data(nodes)
+        .enter()
+        .append("circle")
+        .classed("node", true)
+        .attr("r", function(d) {
+          return d.radius;
+        })
+        .style("fill", function(d, i) {
+          return color(d.index);
+        })
+        .call(force.drag);
+
+      svg
+        .selectAll("line")
+        .data(links)
+        .enter()
+        .append("line")
+        .classed("link", true)
+        .attr({
+          stroke: "#111"
+        });
+
+      force.on("tick", function(e) {
+        var nodes = force.nodes();
+        force.alpha(0.1);
+
+        // collision detection
+        var q = d3.geom.quadtree(nodes);
+        nodes.forEach(function(node) {
+          q.visit(collide(node));
+        });
+
+        // strongly coupling certain nodes
+        links.forEach(function(link) {
+          var source = link.source;
+          var target = link.target;
+          if (link.type == "rigid") {
+            var x = source.x - target.x;
+            var y = source.y - target.y;
+            var dist = Math.sqrt(x * x + y * y);
+            //var r = source.radius + target.radius;
+            var r = link.distance;
+
+            if (dist < r) {
+              // this condition adapted from collision detection
+              dist = ((dist - r) / dist) * 0.5; //don't quite understand this
+              source.x -= x *= dist;
+              source.y -= y *= dist;
+              target.x += x;
+              target.y += y;
+            } else {
+              dist = -0.01; // not sure how to do the opposive of above
+              source.x += x *= dist;
+              source.y += y *= dist;
+              target.x -= x;
+              target.y -= y;
+            }
+          }
+
+          // move the invisible link nodes
+          var x1 = link.source.x,
+            x2 = link.target.x,
+            y1 = link.source.y,
+            y2 = link.target.y,
+            slope = (y2 - y1) / (x2 - x1);
+
+          link.x = (x2 + x1) / 2;
+          link.y = ((x2 - x1) * slope) / 2 + y1;
+        });
+
+        svg.selectAll("circle.node").attr({
+          cx: function(d) {
+            return d.x;
+          },
+          cy: function(d) {
+            return d.y;
+          },
+          r: function(d) {
+            return d.radius;
+          }
+        });
+
+        svg.selectAll("line.link").attr({
+          x1: function(d) {
+            return d.source.x;
+          },
+          y1: function(d) {
+            return d.source.y;
+          },
+          x2: function(d) {
+            return d.target.x;
+          },
+          y2: function(d) {
+            return d.target.y;
+          }
+        });
+      });
+
+      function collide(node) {
+        var r = node.radius + 16,
+          nx1 = node.x - r,
+          nx2 = node.x + r,
+          ny1 = node.y - r,
+          ny2 = node.y + r;
+        return function(quad, x1, y1, x2, y2) {
+          if (quad.point && quad.point !== node) {
+            var x = node.x - quad.point.x,
+              y = node.y - quad.point.y,
+              dist = Math.sqrt(x * x + y * y),
+              r = node.radius + quad.point.radius;
+            if (dist < r) {
+              dist = ((dist - r) / dist) * 0.5;
+              node.x -= x *= dist;
+              node.y -= y *= dist;
+              quad.point.x += x;
+              quad.point.y += y;
+            }
+          }
+          return x1 > nx2 || x2 < nx1 || y1 > ny2 || y2 < ny1;
+        };
+      }
+    </script>
+  </body>
+</html>

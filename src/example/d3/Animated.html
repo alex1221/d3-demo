@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>animated</title>
+    <style>
+      body {
+        background-color: black;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas width="2000" height="1000"></canvas>
+    <script src="js/d3.min.js"></script>
+    <script>
+      var width = 1200,
+        height = 1000,
+        s = 2,
+        w = Math.floor(960 / s),
+        h = Math.floor(1000 / s);
+
+      var points = d3.range(w * h).map(function(i) {
+        return { x: i % w, y: (i / w) >> 0, i: i };
+      });
+
+      points.forEach(function(d, i) {
+        d.px = d.x * s;
+        d.py = d.y * s;
+
+        d.l = d.x ? points[i - 1] : d;
+        d.t = d.y ? points[i - w] : d;
+      });
+
+      var canvas = d3.select("canvas").node();
+
+      var ctx = canvas.getContext("2d");
+
+      setPointsOn(points);
+
+      var mPos = { px: 0, py: 0 };
+
+      d3.select("body")
+        .on("mousemove", function() {
+          mPos = { px: d3.mouse(this)[0], py: d3.mouse(this)[1] };
+        })
+        .on("click", function() {
+          if (Math.random() < 0.5) {
+            onPoints.forEach(function(d) {
+              d.y = h - d.y;
+            });
+          } else {
+            onPoints.forEach(function(d) {
+              d.x = w - d.x;
+            });
+          }
+        });
+
+      var onPoints = points.filter(function(d) {
+        return d.on;
+      });
+
+      d3.timer(function(t) {
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.beginPath();
+        onPoints.forEach(function(d, i) {
+          var dx = (Math.random() - 0.5) * 1;
+          var dy = (Math.random() - 0.5) * 1;
+
+          if (isWithin(d, mPos, 50)) {
+            dx += mPos.px - d.px;
+            dy += mPos.py - d.py;
+
+            dx *= -1 / 5;
+            dy *= -1 / 5;
+
+            if (Math.random() < 0.4) {
+              d.px = d.x * s;
+              d.py = d.y * s;
+              dx = 0;
+              dy = 0;
+            }
+          } else if (Math.random() < 0.3) {
+            dx = xor(dx < 0, d.x * s - d.px < 0) ? -dx : dx;
+            dy = xor(dy < 0, d.y * s - d.py < 0) ? -dy : dy;
+            dx /= 1 / 5;
+            dy /= 1 / 5;
+          }
+
+          d.px += dx;
+          d.py += dy;
+
+          if (d.l.on && isWithin(d, d.l, 50)) {
+            ctx.moveTo(d.px, d.py);
+            ctx.lineTo(d.l.px, d.l.py);
+          }
+          if (d.t.on && isWithin(d, d.t, 50)) {
+            ctx.moveTo(d.px, d.py);
+            ctx.lineTo(d.t.px, d.t.py);
+          }
+        });
+        ctx.strokeStyle = "#f3a406";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      });
+
+      function setPointsOn(points) {
+        ctx.font = "600 200px sans-serif";
+        ctx.textAlign = "right";
+        ctx.textBaseline = "top";
+        ctx.fillText("free dom", width / 1.3, height / 4);
+
+        var imageData = ctx.getImageData(0, 0, width, height).data;
+
+        points.forEach(function(d) {
+          d.on = imageData[(d.py * width + d.px) * 4 + 3];
+        });
+      }
+
+      function xor(a, b) {
+        return (a || b) && !(a && b);
+      }
+
+      function isWithin(a, b, dist) {
+        return Math.abs(a.px - b.px) + Math.abs(a.py - b.py) < dist;
+      }
+
+      d3.select(self.frameElement).style("height", h * s + "px");
+    </script>
+  </body>
+</html>

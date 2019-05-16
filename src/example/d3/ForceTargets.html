@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>force targets</title>
+    <style>
+      body {
+        margin: 0;
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        background-color: #111;
+      }
+      svg {
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <script src="js/d3.v3.min.js"></script>
+    <script>
+      var width = 960;
+      var height = 500;
+      var svg = d3
+        .select("body")
+        .append("svg")
+        .attr("width", width)
+        .attr("height", height);
+
+      var targets = [
+        { x: 200, y: 200 },
+        { x: 663, y: 168 },
+        { x: 417, y: 307 },
+        { x: 221, y: 307 },
+        { x: 443, y: 192 }
+      ];
+      function rand(t, i) {
+        var d = {
+          x: t.x + (Math.random() - 0.5) * 600,
+          y: t.y + (Math.random() - 0.5) * 300,
+          i: i
+        };
+        return d;
+      }
+      var nodes = [];
+      targets.forEach(function(t, i) {
+        console.log("I", i);
+        var d = rand(t, i);
+        nodes.push(d);
+        d = rand(t, i);
+        nodes.push(d);
+        d = rand(t, i);
+        nodes.push(d);
+        d = rand(t, i);
+        nodes.push(d);
+        d = rand(t, i);
+        nodes.push(d);
+      });
+      console.log("NODES", nodes);
+      //http://bl.ocks.org/mbostock/1021841
+      var force = d3.layout
+        .force()
+        .size([width, height])
+        .gravity(0.05)
+        .friction(0.95)
+        .charge(-50)
+        .nodes(nodes);
+
+      var targetCircles = svg.selectAll("circle.target").data(targets);
+
+      targetCircles
+        .enter()
+        .append("circle")
+        .classed("target", true);
+
+      targetCircles.attr({
+        cx: function(d) {
+          return d.x;
+        },
+        cy: function(d) {
+          return d.y;
+        },
+        r: 9,
+        fill: "#efefef"
+      });
+
+      var drag = d3.behavior
+        .drag()
+        .on("drag", function(d) {
+          force.resume();
+          d3.select(this).attr({
+            cx: function(d) {
+              d.x = d3.event.x;
+              return d.x;
+            },
+            cy: function(d) {
+              d.y = d3.event.y;
+              return d.y;
+            }
+          });
+        })
+        .on("dragend", function(d) {
+          console.log(JSON.stringify(targets));
+        });
+      targetCircles.call(drag);
+
+      var fcircles = svg.selectAll("circle.force").data(nodes);
+      fcircles
+        .enter()
+        .append("circle")
+        .classed("force", true);
+      fcircles
+        .attr({
+          r: 3,
+          "fill-opacity": 0.3,
+          stroke: "#efefef"
+        })
+        .call(force.drag);
+
+      force.on("tick", function(e) {
+        var k = 0.16 * e.alpha;
+        nodes.forEach(function(t, i) {
+          t.x += (-t.x + targets[t.i].x) * k;
+          t.y += (-t.y + targets[t.i].y) * k;
+        });
+        fcircles.attr({
+          cx: function(d) {
+            return d.x;
+          },
+          cy: function(d) {
+            return d.y;
+          }
+        });
+      });
+      force.start();
+    </script>
+  </body>
+</html>

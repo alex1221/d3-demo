@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>title</title>
+  </head>
+  <body>
+    <div class="app container">
+      <div class="module" id="plot"></div>
+    </div>
+    <script src="js/d3.v4.min.js"></script>
+    <script src="js/d3-scale-chromatic.v1.min.js"></script>
+    <script>
+      d3.csv(
+        "resource/HeatMap/raw-heatmap.csv",
+        //中间函数
+        function(d) {
+          d => d.sort((a, b) => +a.original_ranking - +b.original_ranking);
+          return d;
+        },
+        function(error, raw) {
+          if (error) throw error;
+          // debugger;
+          const height = 700,
+            marginLeft = 125,
+            marginTop = 130,
+            width = 800;
+
+          const years = raw.map(d => d.year);
+          console.log(years);
+          const keys = Object.keys(raw[0]).slice(2);
+          console.log(keys);
+
+          const svg = d3
+            .select("#plot")
+            .append("svg")
+            .attr("width", width)
+            .attr("height", height)
+            .attr("viewBox", `-${marginLeft} -${marginTop} ${width} ${height}`);
+
+          const x = d3
+            .scaleBand()
+            .range([0, width - marginLeft])
+            .domain(keys)
+            .padding(0.2);
+
+          const xAxis = d3.axisBottom(x);
+
+          svg
+            .append("g")
+            .call(xAxis)
+            .selectAll("text")
+            .attr("y", 0)
+            .attr("x", 5)
+            .attr("dy", -5)
+            .attr("transform", "rotate(315)")
+            .style("text-anchor", "start");
+
+          const y = d3
+            .scaleBand()
+            .range([0, height - marginTop])
+            .domain(years)
+            .padding(0.2);
+
+          const yAxis = d3.axisLeft(y);
+
+          svg.append("g").call(yAxis);
+
+          keys.forEach((key, i) => {
+            // const color = d3.scaleSequential()
+            // 	.domain([d3.min(raw, d => +d[key]), d3.max(raw, d => +d[key])])
+            // 	.interpolator(d3.interpolateYlOrRd)
+            const color = d3
+              .scaleSequential(d3.interpolateHcl("#fff9f4", "#ff7400"))
+              .domain([d3.min(raw, d => +d[key]), 0.8]);
+            console.log(d3.max(raw, d => +d[key]));
+
+            svg
+              .selectAll(`rect.ind-${i}`)
+              .data(raw)
+              .enter()
+              .append("rect")
+              .classed(`ind-${i}`, true)
+              .attr("x", d => x(key))
+              .attr("y", d => y(d.year))
+              .attr("width", x.bandwidth())
+              .attr("height", y.bandwidth())
+              .attr("fill", d => color(+d[key]));
+          });
+        }
+      );
+    </script>
+  </body>
+</html>

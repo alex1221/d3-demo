@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>纯SVG动画遵循路径 - d3js</title>
+    <style>
+      body {
+        background: #232438;
+        color: #fff;
+      }
+
+      a {
+        color: yellow;
+      }
+
+      svg {
+        background: #32344f;
+        border: 1px solid #292a3f;
+        border-radius: 25px;
+      }
+
+      g.container {
+        stroke: #eaeaea;
+        border: #eaeaea;
+      }
+
+      path {
+        fill: none;
+        stroke: #fff;
+        stroke-width: 2;
+      }
+
+      #piece {
+        fill: #000;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>纯SVG动画遵循路径 - d3js</h1>
+      <hr />
+      <ul>
+        <li>通过鼠标滚动放大和缩小。</li>
+        <li>通过鼠标拖动移动视图。</li>
+      </ul>
+      <h3></h3>
+      <svg></svg>
+    </div>
+    <script src="js/d3.v3.min.js"></script>
+    <script>
+      data = {
+        1: {
+          ST: [
+            {
+              caseId: [
+                { id: "1", case: "case1", speed: 10, color: "#24A9A8" },
+                { id: "2", case: "case2", speed: 5, color: "#24A9A8" },
+                { id: "3", case: "case3", speed: 15, color: "#24A9A8" }
+              ]
+            }
+          ]
+        },
+        10: {
+          ST: [
+            {
+              caseId: [
+                { id: "4", case: "case1", speed: 8, color: "#116360" },
+                { id: "5", case: "case2", speed: 9, color: "#116360" },
+                { id: "6", case: "case3", speed: 13, color: "#116360" }
+              ]
+            }
+          ]
+        }
+      };
+
+      var zoom = d3.behavior
+        .zoom()
+        .scaleExtent([0.2, 3])
+        .on("zoom", zoomed);
+
+      var drag = d3.behavior
+        .drag()
+        .origin(function(d) {
+          return d;
+        })
+        .on("dragstart", dragstarted)
+        .on("drag", dragged)
+        .on("dragend", dragended);
+
+      var svg = d3
+        .select("svg")
+        .attr("width", 800)
+        .attr("height", 800)
+        .call(zoom);
+      var container = svg.append("g").attr("class", "container");
+      var defs = svg.append("defs");
+      var path = container
+        .append("path")
+        .attr("id", "shape")
+        .attr(
+          "d",
+          "M 115,169 S 149,424 460,555 S 608,367 568,157 S 438,108 174,57 S 97,90 115,169"
+        );
+
+      /* generate circle */
+      for (var time in data) {
+        //console.log(data[time].ST);
+        console.log("time:" + time);
+        var ST = data[time].ST;
+        for (var time2 in ST) {
+          //console.log(ST[time2]);
+          caseId = ST[time2].caseId;
+          for (var event in caseId) {
+            console.log(caseId[event].id);
+            container
+              .append("circle")
+              .attr("id", caseId[event].id)
+              .attr("fill", caseId[event].color)
+              .attr("cx", 0)
+              .attr("cy", 0)
+              .attr("r", 10);
+
+            defs
+              .append("animateMotion")
+              .attr("xlink:href", "#" + caseId[event].id)
+              .attr("start", time + "s")
+              .attr("dur", caseId[event].speed + "s")
+              .attr("rotate", 0)
+              .attr("repeatCount", "indefinite")
+              .append("mpath")
+              .attr("xlink:href", "#shape");
+          }
+        }
+      }
+
+      function zoomed() {
+        container.attr(
+          "transform",
+          "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")"
+        );
+      }
+
+      function dragstarted(d) {
+        d3.event.sourceEvent.stopPropagation();
+        d3.select(this).classed("dragging", true);
+      }
+
+      function dragged(d) {
+        d3.select(this)
+          .attr("cx", (d.x = d3.event.x))
+          .attr("cy", (d.y = d3.event.y));
+      }
+
+      function dragended(d) {
+        d3.select(this).classed("dragging", false);
+      }
+    </script>
+  </body>
+</html>

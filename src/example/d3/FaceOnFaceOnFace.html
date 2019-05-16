@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Face on face on face</title>
+    <style>
+      body {
+        margin: 0;
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <script src="js/d3.v4.min.js"></script>
+    <script>
+      var width = 960;
+      var height = 500;
+      var blur = 0.8628;
+      var svg = d3
+        .select("body")
+        .append("svg")
+        .attr("width", width)
+        .attr("height", height);
+      var g = svg.append("g"); // for our zoom
+
+      var selected = [
+        "5614495810453504",
+        "6487149920649216",
+        "6299357370384384",
+        "5497432286691328",
+        "6495755827150848",
+        "6288568546754560"
+      ];
+
+      d3.json("resource/FaceOnFaceOnFace/canadian-faces.json", function(err, drawings) {
+        // check the console to see the data format!
+        //    console.log(drawings);
+        var nDrawings = drawings.length;
+        var drawingHash = {};
+        drawings.forEach(function(d) {
+          var strokes = d.drawing.map(function(s) {
+            var points = [];
+            s[0].forEach(function(x, i) {
+              points.push({ x: x, y: s[1][i] });
+            });
+            return points;
+          });
+          d.strokes = strokes;
+          drawingHash[d.key_id] = d;
+        });
+
+        var selectedDrawings = selected.map(function(key) {
+          return drawingHash[key];
+        });
+
+        var line = d3
+          .line()
+          .curve(d3.curveBasis)
+          .x(function(d) {
+            return d.x;
+          })
+          .y(function(d) {
+            return d.y;
+          });
+
+        function drawFaceFace(g, drawing, transform, pscale) {
+          // for every point in our drawing, we place a random face
+          // the transform is used to calculate where we put the faces
+          // the pscale is how we scale our sub-faces
+          var drawn = drawFace(hidden, drawing, transform);
+          var strokes = [];
+          drawn.each(function(d, i) {
+            var stroke = [];
+            stroke.index = i;
+            var path = this;
+            var len = path.getTotalLength();
+            // TODO: figure out the right distance to space things out
+            var p;
+            var space = 12;
+            for (var j = 0; j < len / space; j++) {
+              p = path.getPointAtLength(j * space);
+              p.index = j;
+              stroke.push(p);
+            }
+            strokes.push(stroke);
+          });
+          strokes.forEach(function(stroke) {
+            stroke.forEach(function(p) {
+              var gg = g.append("g").on("click", function() {
+                console.log("stroke", stroke, "p", p);
+              });
+              var index = Math.floor(Math.random() * nDrawings);
+              var x = p.x * transform.k + transform.x;
+              var y = p.y * transform.k + transform.y;
+              g.append("circle")
+                .attr("cx", x)
+                .attr("cy", y)
+                .attr("r", 6)
+                .style("stroke", "#ccc")
+                .style("fill", "#ccc")
+                .style("fill-opacity", 0.5);
+              if (stroke.index === 1 && p.index === 10) {
+                drawFace(gg, selectedDrawings[2], {
+                  x: x - 6,
+                  y: y - 6,
+                  k: 0.05
+                });
+              } else {
+                drawFace(gg, drawings[index], { x: x - 6, y: y - 6, k: 0.05 });
+              }
+            });
+          });
+        }
+
+        function drawFace(g, drawing, transform) {
+          return g
+            .append("g")
+            .classed("drawn", true)
+            .style("fill", "none")
+            .style("stroke", "#111")
+            .style("stroke-width", 9)
+            .style("stroke-linecap", "round")
+            .selectAll("path")
+            .data(drawing.strokes)
+            .enter()
+            .append("path")
+            .attr("d", line)
+            .attr(
+              "transform",
+              "translate(" +
+                [transform.x, transform.y] +
+                ")scale(" +
+                transform.k +
+                ")"
+            );
+        }
+
+        var hidden = g
+          .append("g")
+          .style("opacity", "0")
+          .style("pointer-events", "none");
+
+        drawFaceFace(
+          g,
+          selectedDrawings[2],
+          { x: width / 2, y: height / 2, k: 1 },
+          0.5
+        );
+
+        var spacing = 90;
+        var groups = g.selectAll("g.drawing").data(selectedDrawings);
+        var groupsE = groups
+          .enter()
+          .append("g")
+          .classed("drawing", true)
+          .attr("transform", function(d, i) {
+            // lay them out in a grid
+            var x = 20 + (i % 30) * spacing;
+            var y = 20 + Math.floor(i / 30) * spacing;
+            return "translate(" + [x, y] + ")scale(0.25)";
+          })
+          // we style the groups instead of the individual paths for a slight performance boost
+          .style("fill", "none")
+          .style("stroke", "#111")
+          .style("stroke-width", 9)
+          .style("stroke-linecap", "round")
+          .on("click", function(d) {
+            console.log(d);
+          });
+        //       .style("stroke-opacity", 0.5)
+        var pathsE = groupsE
+          .selectAll("path.stroke")
+          .data(function(d) {
+            // the data for each path is an array of points
+            // but it doesn't start that way
+            // the original format is [ [x0,x1,x2...], [y0,y1,y2...]]
+            return d.strokes;
+          })
+          .enter()
+          .append("path")
+          .classed("stroke", true);
+
+        pathsE.attr("d", line);
+
+        var zoom = d3
+          .zoom()
+          .scaleExtent([1 / 10, 200])
+          .on("zoom", function() {
+            g.attr("transform", d3.event.transform);
+          });
+        svg.call(zoom);
+      });
+    </script>
+  </body>
+</html>

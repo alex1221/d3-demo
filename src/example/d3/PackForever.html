@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>pack forever</title>
+    <style>
+      body {
+        text-align: center;
+        background-color: #111;
+      }
+      button {
+        font-size: 24px;
+      }
+    </style>
+  </head>
+  <body>
+    <div></div>
+    <script src="js/d3.v4.min.js"></script>
+    <script>
+      var diameter = 250,
+        circleSize = d3.scaleLinear().range([100, 5000000]);
+
+      var duration = 300;
+
+      var svg = d3
+        .select("div")
+        .append("svg")
+        .attr("width", diameter * 2)
+        .attr("height", diameter * 2)
+        .append("g")
+        .attr(
+          "transform",
+          "translate(" + diameter / 2 + " " + diameter / 2 + ")"
+        );
+
+      var children = initialLayout(randomData(40));
+
+      var radiusScale = d3
+        .scaleSqrt()
+        .domain([children[0].value, children[1].value])
+        .range([children[0].r, children[1].r]);
+
+      render();
+
+      setInterval(function() {
+        addCircle();
+        render();
+      }, duration - 5);
+
+      function render() {
+        var circles = svg
+          .selectAll("circle")
+          .data(children, function(d) {
+            return +d.id;
+          })
+          .style("fill", "#66bbdd");
+
+        var entering = circles
+          .enter()
+          .append("circle")
+          .style("fill", "yellow")
+          .style("stroke", "black")
+          .attr("r", 0)
+          .attr("cx", d => d.x)
+          .attr("cy", d => d.y);
+
+        circles
+          .merge(entering)
+          .transition()
+          .duration(duration)
+          .attr("cx", d => d.x)
+          .attr("cy", d => d.y)
+          .attr("r", d => d.r);
+      }
+
+      function addCircle() {
+        var newValue = circleSize(Math.random()),
+          neighbor = d3.scan(children, function(a, b) {
+            return Math.abs(a.value - newValue) - Math.abs(b.value - newValue);
+          }),
+          newNode = {
+            r: radiusScale(newValue),
+            id: children.length + 1,
+            x: children[neighbor].x,
+            y: children[neighbor].y
+          },
+          links = [
+            {
+              distance: newNode.r + children[neighbor].r,
+              source: children.length,
+              target: neighbor
+            }
+          ];
+
+        children.push(newNode);
+
+        children.forEach(function(d) {
+          d.x0 = d.x;
+          d.y0 = d.y;
+        });
+
+        var simulation = d3
+          .forceSimulation(children)
+          .force(
+            "cx",
+            d3
+              .forceX()
+              .x(d => diameter / 2)
+              .strength(0.02)
+          )
+          .force(
+            "cy",
+            d3
+              .forceY()
+              .y(d => diameter / 2)
+              .strength(0.02)
+          )
+          .force(
+            "link",
+            d3
+              .forceLink(links)
+              .distance(d => d.distance)
+              .strength(0.5)
+          )
+          .force(
+            "x",
+            d3
+              .forceX()
+              .x(d => d.x0)
+              .strength(0.1)
+          )
+          .force(
+            "y",
+            d3
+              .forceY()
+              .y(d => d.y0)
+              .strength(0.1)
+          )
+          .force(
+            "collide",
+            d3
+              .forceCollide()
+              .strength(0.8)
+              .radius(d => d.r + 1)
+          )
+          .stop();
+
+        while (simulation.alpha() > 0.001) {
+          simulation.tick();
+        }
+      }
+
+      function initialLayout(data) {
+        var stratify = d3
+          .stratify()
+          .id(d => d.id)
+          .parentId(d => d.parent);
+
+        var pack = d3.pack().size([diameter - 4, diameter - 4]);
+
+        var root = stratify(data)
+          .sum(d => d.size)
+          .sort((a, b) => b.value - a.value);
+
+        return pack(root).leaves();
+      }
+
+      function randomData(numNodes) {
+        return d3.range(numNodes).map(function(d) {
+          return {
+            id: d,
+            name: d ? "Leaf" : "Root",
+            size: circleSize(Math.random()),
+            parent: d ? 0 : undefined
+          };
+        });
+      }
+    </script>
+  </body>
+</html>

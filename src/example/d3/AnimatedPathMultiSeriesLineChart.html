@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Animated path multi-series line chart</title>
+    <style>
+      body {
+        font: 12px Helvetica;
+      }
+
+      .axis line {
+        fill: red;
+        stroke: #000;
+        shape-rendering: crispEdges;
+      }
+
+      .x.axis path {
+        display: none;
+      }
+
+      .line {
+        fill: none;
+        stroke: steelblue;
+        stroke-width: 3px;
+      }
+    </style>
+  </head>
+  <body>
+    <script src="js/d3.v3.min.js"></script>
+    <script>
+      var margin = { top: 20, right: 50, bottom: 30, left: 80 },
+        width = 630 - margin.left - margin.right,
+        height = 400 - margin.top - margin.bottom;
+
+      var parseDate = d3.time.format("%Y-%m-%d").parse;
+
+      var x = d3.time.scale().range([0, width]);
+
+      var y = d3.scale.linear().range([height, 0]);
+
+      var color = d3.scale.category10();
+
+      var xAxis = d3.svg
+        .axis()
+        .scale(x)
+        .ticks(10)
+        .innerTickSize(2)
+        .outerTickSize(0)
+        .orient("bottom");
+
+      var yAxis = d3.svg
+        .axis()
+        .scale(y)
+        .tickFormat(function(d) {
+          return d + "%";
+        })
+        .ticks(5)
+        .innerTickSize(15)
+        .outerTickSize(0)
+        .orient("left");
+
+      var line = d3.svg
+        .line()
+        .interpolate("basis")
+        .x(function(d) {
+          return x(d.date);
+        })
+        .y(function(d) {
+          return y(d.price);
+        });
+
+      var svg = d3
+        .select("body")
+        .append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+      d3.csv(
+        "resource/AnimatedPathMultiSeriesLineChart/US.and.SF.Crimerate.csv",
+        function(error, data) {
+          color.domain(
+            d3.keys(data[0]).filter(function(key) {
+              return key !== "Year";
+            })
+          );
+
+          data.forEach(function(d) {
+            d.date = parseDate(d.Year);
+          });
+
+          var companies = color.domain().map(function(name) {
+            return {
+              name: name,
+              values: data.map(function(d) {
+                return { date: d.date, price: +d[name] };
+              })
+            };
+          });
+
+          x.domain(
+            d3.extent(data, function(d) {
+              return d.date;
+            })
+          );
+
+          y.domain([
+            d3.min(companies, function(c) {
+              return d3.min(c.values, function(v) {
+                return v.price;
+              });
+            }),
+            d3.max(companies, function(c) {
+              return d3.max(c.values, function(v) {
+                return v.price;
+              });
+            })
+          ]);
+
+          svg
+            .append("g")
+            .attr("class", "x axis")
+            .attr("transform", "translate(0," + height + ")")
+            .call(xAxis);
+
+          svg
+            .append("g")
+            .attr("class", "y axis")
+            .call(yAxis);
+
+          svg.append("line").attr({
+            class: "horizontalGrid",
+            x1: 0,
+            x2: width,
+            y1: y(0),
+            y2: y(0),
+            fill: "none",
+            "shape-rendering": "crispEdges",
+            stroke: "black",
+            "stroke-width": "1px",
+            "stroke-dasharray": "3, 3"
+          });
+
+          var company = svg
+            .selectAll(".company")
+            .data(companies)
+            .enter()
+            .append("g")
+            .attr("class", "company");
+
+          var path = svg
+            .selectAll(".company")
+            .append("path")
+            .attr("class", "line")
+            .attr("d", function(d) {
+              return line(d.values);
+            })
+            .style("stroke", function(d) {
+              return color(d.name);
+            });
+
+          var totalLength = [
+            path[0][0].getTotalLength(),
+            path[0][1].getTotalLength()
+          ];
+          console.log(totalLength);
+
+          d3.select(path[0][0])
+            .attr("stroke-dasharray", totalLength[0] + " " + totalLength[0])
+            .attr("stroke-dashoffset", totalLength[0])
+            .transition()
+            .duration(15000)
+            .ease("linear")
+            .attr("stroke-dashoffset", 0);
+
+          d3.select(path[0][1])
+            .attr("stroke-dasharray", totalLength[1] + " " + totalLength[1])
+            .attr("stroke-dashoffset", totalLength[1])
+            .transition()
+            .duration(15000)
+            .ease("linear")
+            .attr("stroke-dashoffset", 0);
+        }
+      );
+    </script>
+  </body>
+</html>

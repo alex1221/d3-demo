@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Urquhart Spider Web</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <script src="js/d3.v4.min.js"></script>
+    <script>
+      var width = 960,
+        height = 500,
+        τ = 2 * Math.PI,
+        maxLength = 10000,
+        maxLength2 = maxLength * maxLength,
+        minDistance = 50,
+        maxDistance = 70,
+        minDistance2 = minDistance * minDistance,
+        maxDistance2 = maxDistance * maxDistance;
+
+      var radius = 300;
+
+      var randomHue = 0; // * Math.random();
+      var randomSaturation = 0; // * Math.random();
+      var randomLightness = 300; // * Math.random();
+
+      var nodes = d3.range(300).map(function() {
+        return {
+          x: Math.random() * width,
+          y: Math.random() * height
+        };
+      });
+
+      var voronoi = d3
+        .voronoi()
+        .x(function(d) {
+          return d.x;
+        })
+        .y(function(d) {
+          return d.y;
+        });
+
+      var diagram = voronoi(nodes);
+      var polygons = voronoi.polygons(nodes);
+
+      var links = urquhart(diagram);
+      console.log("POLYGONS", polygons);
+
+      var force = d3
+        .forceSimulation()
+        .nodes(nodes.slice())
+        //.force("link", d3.forceLink().id(function(d) { return d.id; }).distance(40).strength(100))
+        .force(
+          "charge",
+          d3.forceManyBody().strength(function(d, i) {
+            return i ? -20 : -1000;
+          })
+        )
+        .force("x", d3.forceX())
+        .force("y", d3.forceY())
+        .force("center", d3.forceCenter(width / 2, height / 2))
+        .on("tick", ticked);
+
+      var canvas = d3
+        .select("body")
+        .append("canvas")
+        .attr("width", width)
+        .attr("height", height)
+        .on("ontouchstart" in document ? "touchmove" : "mousemove", moved);
+
+      var context = canvas.node().getContext("2d");
+      //context.globalCompositeOperation = "screen";
+      context.lineJoin = "round";
+
+      function moved() {
+        var p1 = d3.mouse(this);
+        nodes[0].fx = p1[0];
+        nodes[0].fy = p1[1];
+        force.alpha(0.1).restart();
+      }
+
+      function urquhart(diagram) {
+        var urquhart = d3.map();
+        diagram.links().forEach(function(link) {
+          var v = d3.extent([link.source.index, link.target.index]);
+          urquhart.set(v, link);
+        });
+        urquhart._remove = [];
+        diagram.triangles().forEach(function(t) {
+          var l = 0,
+            length = 0,
+            i = "bleh",
+            v;
+          for (var j = 0; j < 3; j++) {
+            var a = t[j],
+              b = t[(j + 1) % 3];
+            v = d3.extent([a.index, b.index]);
+            length = (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
+            if (length > l) {
+              l = length;
+              i = v;
+            }
+          }
+          urquhart._remove.push(i);
+        });
+        //console.log(JSON.stringify(urquhart._remove))
+        urquhart._remove.forEach(function(i) {
+          if (urquhart.has(i)) urquhart.remove(i);
+        });
+        return urquhart.values();
+      }
+
+      function ticked() {
+        var diagram = voronoi(nodes);
+        var polygons = voronoi.polygons(nodes);
+        //var links = diagram.links();
+        var links = urquhart(diagram);
+        var dlen = links.length;
+        var plen = polygons.length;
+
+        //context.clearRect(0, 0, width, height);
+        context.fillStyle = "rgba(10,10,10,0.5)";
+        context.fillRect(0, 0, width, height);
+
+        var hue = 2;
+        var hue1 = (hue + randomHue) % 360;
+        var hue2 = (hue + randomHue + 260) % 360;
+        var interpolate = d3.interpolateHcl(
+          d3.hcl(hue1, 50, 95),
+          d3.hcl(hue2, 20 + randomSaturation, 20 + randomLightness)
+        );
+
+        //context.globalAlpha = 0.5;
+
+        for (var i = 0, n = polygons.length; i < n; ++i) {
+          //context.strokeStyle = interpolate(i/plen);
+          context.beginPath();
+          drawCell(polygons[i]);
+          context.strokeStyle = "rgba(255,255,255,0.25)";
+          context.lineWidth = 3;
+          context.stroke();
+        }
+
+        for (var i = 0, n = links.length; i < n; ++i) {
+          var link = links[i],
+            dx = link.source.x - link.target.x,
+            dy = link.source.y - link.target.y;
+          var d2 = dx * dx + dy * dy;
+          if (d2 < maxLength2) {
+            //var ratio = d2 > minDistance2 ? (maxDistance2 - d2) / (maxDistance2 - minDistance2) : 0.5;
+            //var rease = d3.easeCubic(ratio);
+            //context.globalAlpha = rease
+            context.beginPath();
+            context.moveTo(link.source.x, link.source.y);
+            context.lineTo(link.target.x, link.target.y);
+            context.lineWidth = 3;
+            //context.strokeStyle = interpolate(i/dlen);
+            context.strokeStyle = "rgba(250,250,250,0.25)";
+            context.stroke();
+          }
+        }
+        context.globalAlpha = 1;
+
+        /*
+          context.lineWidth = 2;
+          context.beginPath();
+          for (var i = 0, n = nodes.length; i < n; ++i) {
+            var node = nodes[i];
+            context.moveTo(node.x, node.y);
+            context.arc(node.x, node.y, 2, 0, τ);
+          }
+          
+        
+          context.strokeStyle = "#fff";
+          context.stroke();
+          context.fillStyle = "#000";
+          context.fill();
+          */
+      }
+
+      function test(x, y) {
+        var cx = width / 2;
+        var cy = height / 2;
+        var dx = x - cx;
+        var dy = y - cy;
+        var d2 = dx * dx + dy * dy;
+        var r2 = radius * radius;
+        if (d2 > r2) {
+          x = cx + (radius * dx) / r2;
+          y = cy + (radius * dy) / r2;
+        }
+        return [x, y];
+      }
+      function drawCell(cell) {
+        if (!cell || !cell[0]) return false;
+        var x, y;
+
+        x = cell[0][0];
+        y = cell[0][1];
+        /*
+          if(x > width - 5) x = width-5;
+          if(x < 5) x = 5;
+          if(y > height - 5) y = height - 5;
+          if(y < 5) y = 5;
+          */
+        var p = test(x, y);
+        context.moveTo(p[0], p[1]);
+
+        for (var j = 1, m = cell.length; j < m; ++j) {
+          if (!cell[j]) continue;
+          x = cell[j][0];
+          y = cell[j][1];
+          /*
+            if(x > width) x = width-5;
+            if(x < 5) x = 5;
+            if(y > height - 5) y = height - 5;
+            if(y < 5) y = 5;
+            */
+          p = test(x, y);
+          context.lineTo(p[0], p[1]);
+        }
+        context.closePath();
+        return true;
+      }
+    </script>
+  </body>
+</html>

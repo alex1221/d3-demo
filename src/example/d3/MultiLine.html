@@ -1,0 +1,284 @@
+<!-- https://bl.ocks.org/juanprq/334022f178debf3001d2c534926391d0-->
+<!--https://bl.ocks.org/mbostock/8033015-->
+<!DOCTYPE html>
+<html>
+  <meta charset="utf-8" />
+  <title>Multi Line</title>
+  <!-- <script src="js/d3.v5.min.js"></script> -->
+  <!-- <script src="js/d3.v4.min.js"></script> -->
+  <style>
+    .teams {
+      fill: none;
+      stroke: #aaa;
+      stroke-linejoin: round;
+      stroke-linecap: round;
+      stroke-width: 1.5px;
+    }
+
+    .team--hover {
+      stroke: #000;
+    }
+
+    .tooltip {
+      position: absolute;
+      width: 150px;
+      height: 60px;
+      background: #f2f2f2;
+      pointer-events: none;
+    }
+
+    .focus text {
+      text-anchor: middle;
+      text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;
+    }
+
+    .voronoi path {
+      fill: none;
+      pointer-events: all;
+    }
+
+    /* .voronoi--show path {
+  stroke: red;
+  stroke-opacity: 0.2;
+} */
+
+    #form {
+      position: absolute;
+      top: 20px;
+      right: 30px;
+    }
+  </style>
+  <body>
+    <div><svg id="chart4" width="1000" height="500"></svg></div>
+    <!-- <label id="form" for="show-voronoi">
+  Show Voronoi
+  <input type="checkbox" id="show-voronoi" disabled> -->
+    <!-- </label> -->
+    <script src="js/d3.v4.min.js"></script>
+    <script src="js/d3-scale-chromatic.v1.min.js"></script>
+    <script>
+      var tooltip = d3
+        .select("body")
+        .append("div")
+        .attr("class", "tooltip")
+        .style("opacity", 100);
+
+      var seasons,
+        seasonKeys,
+        seasonParse = d3.timeParse("%Y");
+
+      var svg4 = d3.select("#chart4"),
+        margin4 = { top: 20, right: 30, bottom: 30, left: 40 },
+        width4 = svg4.attr("width") - margin4.left - margin4.right,
+        height4 = svg4.attr("height") - margin4.top - margin4.bottom;
+      g4 = svg4
+        .append("g")
+        .attr(
+          "transform",
+          "translate(" + margin4.left + "," + margin4.top + ")"
+        );
+
+      //   https://bl.ocks.org/gordlea/27370d1eea8464b04538e6d8ced39e89
+      var line = d3
+        .line()
+        .x(function(d) {
+          return x4(d.date);
+        })
+        .y(function(d) {
+          return y4(d.value);
+        })
+        .curve(d3.curveMonotoneX);
+
+      //small multiples
+      //chart 4
+      // var	margin4 = {top: 30, right: 20, bottom: 30, left: 50},
+      // 	width4 = 400 - margin4.left - margin4.right,
+      // 	height4 = 220 - margin4.top - margin4.bottom;
+
+      //   var	svg4 = d3.select("#chart4")
+      // 	.append("svg")
+      // 		.attr("width", width4 + margin4.left + margin4.right)
+      // 		.attr("height", height4 + margin4.top + margin4.bottom),
+
+      var x4 = d3.scaleTime().range([0, width4]);
+
+      var y4 = d3.scaleLinear().range([0, height4]);
+
+      var z4 = d3.scaleOrdinal(d3.schemeCategory20);
+
+      var voronoi = d3
+        .voronoi()
+        .x(function(d) {
+          return x4(d.date);
+        })
+        .y(function(d) {
+          return y4(d.value);
+        })
+        .extent([
+          [-margin4.left, -margin4.top],
+          [width4 + margin4.right, height4 + margin4.bottom]
+        ]);
+
+      //   d3.tsv("t1.tsv",type).then(function(data) {
+      d3.tsv("resource/MultiLine/t3.tsv", type, function(error, data) {
+        if (error) throw error;
+
+        x4.domain(d3.extent(seasons));
+        y4.domain([
+          0,
+          d3.max(data, function(c) {
+            return d3.max(c.values, function(d) {
+              return d.value;
+            });
+          })
+        ]);
+        //   y4.domain([0.01, d3.max(data, y4)]);
+        z4.domain(
+          data.map(function(d) {
+            return d.name;
+          })
+        );
+
+        g4.append("g")
+          .attr("class", "axis x-axis")
+          .attr("transform", "translate(0," + height4 + ")")
+          .call(d3.axisBottom(x4).ticks(10));
+
+        g4.append("g")
+          .attr("class", "axis y-axis")
+          .call(d3.axisLeft(y4).ticks(10, "#"))
+          .append("text")
+          .attr("x", 4)
+          .attr("y", 0.5)
+          .attr("dy", "0.32em")
+          .style("text-anchor", "start")
+          .style("fill", "#000")
+          .style("font-weight", "bold")
+          .text("Seed");
+
+        //   g4.append("g")
+        //       .attr("class", "teams")
+        //     .selectAll("path")
+        //     .data(data)
+        //     .enter().append("path")
+        //       .attr("d", function(d) { d.line = this; return line(d.values); });
+
+        g4.append("g")
+          .attr("class", "teams")
+          .selectAll("path")
+          .data(data)
+          .enter()
+          .append("path")
+          .attr("d", function(d) {
+            d.line = this;
+            return line(d.values);
+          })
+          .style("stroke", function(d) {
+            return z4(d.name);
+          });
+
+        var focus = g4
+          .append("g")
+          .attr("transform", "translate(-100,-100)")
+          .attr("class", "focus");
+
+        focus.append("circle").attr("r", 3.5);
+
+        focus.append("text").attr("y", -10);
+
+        var voronoiGroup = g4.append("g").attr("class", "voronoi");
+
+        voronoiGroup
+          .selectAll("path")
+          .data(
+            voronoi.polygons(
+              d3.merge(
+                data.map(function(d) {
+                  return d.values;
+                })
+              )
+            )
+          )
+          .enter()
+          .append("path")
+          .attr("d", function(d) {
+            return d ? "M" + d.join("L") + "Z" : null;
+          })
+          .on("mouseover", mouseover)
+          .on("mouseout", mouseout);
+
+        //   d3.select("#show-voronoi")
+        //       .property("disabled", false)
+        //       .on("change", function() { voronoiGroup.classed("voronoi--show", this.checked); });
+
+        function mouseover(d) {
+          d3.select(d.data.team.line)
+            .style("stroke-width", 5)
+            .style("stroke", d3.hsl(z4(d.data.team.name)));
+          d.data.team.line.parentNode.appendChild(d.data.team.line);
+          focus.attr(
+            "transform",
+            "translate(" + x4(d.data.date) + "," + y4(d.data.value) + ")"
+          );
+          //     focus.select("text").text(d.data.team.name+ ': ' + d.data.value);
+          tooltip
+            .transition()
+            .duration(200) // ms delay before appearing
+            .style("opacity", 1); // tooltip appears on mouseover
+          tooltip
+            .html(
+              "Team: " + d.data.team.name + "<br/> " + "Seed: " + d.data.value
+            ) // add conf and passing attemps to tooltip
+            .style("left", d3.event.pageX + 5 + "px") // specify x location
+            .style("top", d3.event.pageY - 28 + "px"); // specify y location
+        }
+
+        function mouseout(d) {
+          d3.select(d.data.team.line)
+            .style("stroke-width", 1.5)
+            .style("stroke", z4(d.data.team.name));
+          focus.attr("transform", "translate(-100,-100)");
+          tooltip
+            .transition()
+            .duration(500)
+            .style("opacity", 0);
+        }
+
+        //    function mouseover(d) {
+        //     d3.select(d.data.team.line).classed("team--hover", true).style("stroke-width", 3);
+        //     d.data.team.line.parentNode.appendChild(d.data.team.line);
+        //     focus.attr("transform", "translate(" + x4(d.data.date) + "," + y4(d.data.value) + ")");
+        //     focus.select("text").text(d.data.team.name+ ': ' + d.data.value);
+        //    tooltip.transition()
+        //       .duration(200)         // ms delay before appearing
+        //       .style("opacity", 1); // tooltip appears on mouseover
+        // 		tooltip.html("Team: " + d.data.team.name + "<br/> " + "Seed: " +d.data.value)   // add conf and passing attemps to tooltip
+        //                .style("left", (d3.event.pageX + 5) + "px")  // specify x location
+        //                .style("top", (d3.event.pageY - 28) + "px");  // specify y location
+        //   }
+
+        //   function mouseout(d) {
+        //     d3.select(d.data.team.line).classed("team--hover", false).style("stroke-width", 1.5);
+        //     focus.attr("transform", "translate(-100,-100)");
+        //   	 tooltip.transition()
+        //                .duration(500)
+        //                .style("opacity", 0);
+        //   }
+      });
+
+      function type(d, i, columns) {
+        if (!seasons)
+          (seasonKeys = columns.slice(1)),
+            (seasons = seasonKeys.map(seasonParse));
+        var c = {
+          name: d.name.replace(/ (msa|necta div|met necta|met div)$/i, ""),
+          values: null
+        };
+        c.values = seasonKeys.map(function(k, i) {
+          return { team: c, date: seasons[i], value: d[k] / 1 };
+        });
+        return c;
+      }
+    </script>
+  </body>
+</html>

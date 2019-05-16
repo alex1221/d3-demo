@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>morph experiment #3</title>
+    <style>
+      svg {
+        width: 960px;
+        height: 500px;
+      }
+    </style>
+  </head>
+  <body>
+    <script src="js/d3.min.js"></script>
+    <svg></svg>
+    <script>
+      var svg = d3.select("svg");
+
+      var cx = 960 / 2;
+      var cy = 500 / 2;
+      var outr = 200;
+
+      var outer = svg.append("circle").attr({
+        cx: cx,
+        cy: cy,
+        r: outr,
+        fill: "none",
+        stroke: "#1B8600",
+        "stroke-width": 4
+      });
+
+      var electron = svg.append("circle").attr({
+        cx: cx + outr,
+        cy: cy,
+        r: 15,
+        fill: "#067BA8"
+      });
+
+      var drag = d3.behavior.drag().on("drag", function() {
+        var mx = d3.mouse(this)[0];
+        var my = d3.mouse(this)[1];
+
+        var omega = Math.atan2(mx - cx, my - cy);
+        var nx = outr * Math.sin(omega);
+        var ny = outr * Math.cos(omega);
+
+        electron.attr({
+          cx: cx + nx,
+          cy: cy + ny
+        });
+      });
+
+      electron.call(drag);
+    </script>
+  </body>
+</html>

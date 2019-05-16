@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>grid squares to star circle</title>
+    <style>
+      body {
+        margin: 0;
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+      }
+      circle {
+        fill: blue;
+        fill-opacity: 0.4;
+      }
+      line {
+        stroke: red;
+      }
+
+      .shape {
+        fill: #fdcb0b;
+        stroke: #bf9901;
+      }
+    </style>
+  </head>
+  <body>
+    <script src="js/d3.v4.min.js"></script>
+    <script>
+      /* ----- size of svg ------ */
+      const width = 500;
+      const height = width;
+
+      /* ----- transition duration ------ */
+      const duration = 1000;
+      const delay = 500;
+
+      /* -----  number of shapes and size of shape  ------- */
+      const noShapes = 9;
+      const scale = 0.4;
+
+      /* ----- grid settings ----- */
+      const rows = 3;
+      const columns = 3;
+      const rowHeight = height / rows;
+      const columnWidth = width / columns;
+
+      /* -----  positions around the circle  ------- */
+      const compensate = (238 * scale) / 2;
+      const angle = 360 / noShapes;
+      const radian = angle * (Math.PI / 180);
+      const radius = width / 2 - compensate;
+
+      /* ----- shapes ------ */
+      const starData =
+        "M119,0  148,86  238,86  166,140  192,226  119,175  46,226  72,140  0,86  90,86z";
+      const squareData =
+        "M0,0  59,0  119,0  179,0  238,0  238,113  238,238  119,238  0,238  0,113z";
+
+      var svg = d3
+        .select("body")
+        .append("svg")
+        .attr("width", width)
+        .attr("height", height);
+
+      function addDefs() {
+        svg
+          .append("defs")
+          .append("path")
+          .attr("id", "aShape")
+          .classed("shape", true)
+          .attr("d", squareData);
+      }
+
+      function loopMorph(shapeType) {
+        let rowNo = 0;
+        d3.selectAll("use")
+          .nodes()
+          .forEach(function(d, i) {
+            const x = radius * Math.cos(Math.PI / 180 + radian * i);
+            const y = radius * Math.sin(Math.PI / 180 + radian * i);
+
+            if (i % columns === 0 && i != 0) {
+              rowNo++;
+            }
+
+            const transform =
+              shapeType === "star"
+                ? `translate(${x + width / 2 - compensate} ${y +
+                    width / 2 -
+                    compensate}) scale(${scale})`
+                : `translate(${(i % columns) * columnWidth} ${rowNo *
+                    rowHeight}) scale(${scale})`;
+
+            const shape = d3
+              .select(d)
+              .transition()
+              .duration(duration)
+              .ease(d3.easeLinear)
+              .attr("transform", transform);
+          });
+
+        const shapeData = shapeType === "star" ? starData : squareData;
+        d3.select(".shape")
+          .transition()
+          .duration(duration)
+          .ease(d3.easeExp)
+          .attr("d", shapeData);
+
+        setTimeout(() => {
+          loopMorph(shapeType === "star" ? "square" : "star");
+        }, duration + delay);
+      }
+
+      function addShapes() {
+        let rowNo = 0;
+        for (let i = 0; i < noShapes; i++) {
+          if (i % columns === 0 && i != 0) {
+            rowNo++;
+          }
+
+          svg
+            .append("use")
+            .attr("xlink:href", "#aShape")
+            .attr(
+              "transform",
+              `translate(${(i % columns) * columnWidth} ${rowNo *
+                rowHeight}) scale(${scale})`
+            );
+        }
+      }
+
+      addDefs();
+      addShapes();
+      loopMorph("square");
+    </script>
+  </body>
+</html>

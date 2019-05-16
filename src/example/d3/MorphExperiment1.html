@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>morph experiment #1</title>
+    <style>
+      body {
+        background-color: #192247;
+      }
+    </style>
+  </head>
+  <body>
+    <script src="js/d3.min.js"></script>
+    <script src="js/MorphExperiment/sampler.js"></script>
+    <script src="js/MorphExperiment/matrix.js"></script>
+    <script src="js/MorphExperiment/polyk.js"></script>
+
+    <svg width="960" height="500">
+      <g transform="translate(-50,0)" opacity="0">
+        <path
+          id="outer"
+          fill="none"
+          stroke="#fff"
+          stroke-width="0.8"
+          stroke-miterlimit="10"
+          d="M174.7,85c-24.5,14-57,18-45.8,45.7
+          c9.5,23.4-28.2,15.1-45.8-25.7s20.5-65.8,45.8-65.8S196.7,72.5,174.7,85Z"
+        />
+        <path
+          id="inner"
+          fill="none"
+          stroke="#fff"
+          stroke-width="0.8"
+          stroke-miterlimit="10"
+          d="M128.4,64.4c-1.9-0.1-5.9,6-5.9,6s-2.3-3.6-1-7.4
+          c1.4-3.8,3.4-3.5,5-3.1C128.3,60.2,141.8,65.1,128.4,64.4z"
+        />
+      </g>
+      <g id="output"></g>
+    </svg>
+
+    <script>
+      var svg = d3.select("svg");
+      var inner = d3.select("#inner");
+      var outer = d3.select("#outer");
+      var numSamples = 10;
+      var numLines = 5;
+
+      var scale = 1.5;
+
+      var line = d3.svg
+        .line()
+        .x(function(d) {
+          return d.x;
+        })
+        .y(function(d) {
+          return d.y;
+        })
+        .interpolate("linear-closed");
+      //.interpolate("cardinal-closed")
+      //.interpolate("basis-closed")
+
+      var output = d3.select("#output");
+
+      function interpolate(rotate) {
+        //var ins = Sampler.getSamples(inner.node(), numSamples);
+        //var outs = Sampler.getSamples(outer.node(), numSamples);
+        var ins = generateRect(20, 100, 99, 62, 63);
+        var outs = generateRect(20, 0, 0, 310, 310);
+        var c = centroid(ins);
+        var zeroer = new Matrix()
+          .scale(1)
+          .rotate(0)
+          .translate(-c.x, -c.y); // we center our shapes on 0,0 to rotate about center
+        var morpher = new Matrix()
+          //.scale(scale)
+          .rotate(-rotate);
+        var placer = new Matrix().translate(450, 225);
+
+        ins.forEach(function(d) {
+          transformer(d, zeroer);
+          transformer(d, placer);
+        });
+
+        outs.forEach(function(d) {
+          transformer(d, zeroer);
+          transformer(d, morpher);
+          transformer(d, placer);
+        });
+
+        var lines = [];
+        d3.range(numLines + 1).forEach(function(index) {
+          var samples = [];
+          var ratio = index / numLines;
+          var i, x, y;
+          var last;
+          if (index === 0) {
+            last = ins;
+          } else {
+            last = lines[index - 1];
+          }
+          for (i = 0; i < last.length; i++) {
+            // TODO: better interpolation?
+            x = ins[i].x * (1 - ratio) + outs[i].x * ratio;
+            y = ins[i].y * (1 - ratio) + outs[i].y * ratio;
+            var p = { x: x, y: y };
+            samples.push(p);
+          }
+          lines.push(samples);
+        });
+
+        //verify center
+        transformer(c, zeroer);
+        transformer(c, placer);
+        output.append("circle").attr({
+          r: 5,
+          fill: "orange",
+          cx: c.x,
+          cy: c.y
+        });
+
+        // draw the lines we are interpolating along
+        var interps = output.selectAll("line").data(ins);
+        interps.enter().append("line");
+        interps.attr({
+          x1: function(d, i) {
+            return d.x;
+          },
+          y1: function(d, i) {
+            return d.y;
+          },
+          x2: function(d, i) {
+            return outs[i].x;
+          },
+          y2: function(d, i) {
+            return outs[i].y;
+          },
+          stroke: "#6c95cf",
+          "stroke-width": 1
+        });
+
+        var blended = output.selectAll("path.blend").data(lines);
+        blended
+          .enter()
+          .append("path")
+          .classed("blend", true);
+        blended.attr({
+          d: function(d) {
+            return line(d);
+          },
+          fill: "none",
+          stroke: "#ff005d",
+          "stroke-width": 2
+        });
+
+        var groups = output.selectAll("g.line").data(lines);
+        groups
+          .enter()
+          .append("g")
+          .classed("line", true);
+        var circles = groups.selectAll("circle").data(function(d) {
+          return d;
+        });
+        circles.enter().append("circle");
+        circles.attr({
+          r: 3,
+          fill: "white",
+          cx: function(d) {
+            return d.x;
+          },
+          cy: function(d) {
+            return d.y;
+          }
+        });
+      }
+
+      interpolate(90);
+
+      function generateRect(num, x, y, width, height) {
+        var points = [];
+        var sideNum = Math.floor(num / 4) + 1;
+        // top
+        d3.range(sideNum).forEach(function(i) {
+          points.push({ x: x + (i * width) / sideNum, y: y });
+        });
+        // right
+        d3.range(sideNum).forEach(function(i) {
+          points.push({ x: x + width, y: y + (i * height) / sideNum });
+        });
+        // bottom
+        d3.range(sideNum).forEach(function(i) {
+          points.push({ x: x + width - (i * width) / sideNum, y: y + height });
+        });
+        // left
+        d3.range(sideNum).forEach(function(i) {
+          points.push({ x: x, y: y + height - (i * height) / sideNum });
+        });
+        return points;
+      }
+
+      // "electron" dial component. TODO: componentize
+      var cx = 75;
+      var cy = 75;
+      var radius = 50;
+      var ring = svg.append("circle").attr({
+        cx: cx,
+        cy: cy,
+        r: radius,
+        fill: "none",
+        stroke: "#3dfbff",
+        "stroke-width": 4
+      });
+
+      var electron = svg.append("circle").attr({
+        cx: cx + radius,
+        cy: cy,
+        r: 10,
+        fill: "#3dfbff"
+      });
+
+      var drag = d3.behavior.drag().on("drag", function() {
+        var mx = d3.mouse(this)[0];
+        var my = d3.mouse(this)[1];
+        var omega = Math.atan2(mx - cx, my - cy);
+        var nx = radius * Math.sin(omega);
+        var ny = radius * Math.cos(omega);
+        electron.attr({
+          cx: cx + nx,
+          cy: cy + ny
+        });
+        interpolate((omega * 180) / Math.PI);
+      });
+
+      electron.call(drag);
+    </script>
+  </body>
+</html>

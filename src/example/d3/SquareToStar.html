@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>square to star</title>
+    <style>
+      body {
+        margin: 0;
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+      }
+
+      circle {
+        stroke: red;
+        fill: none;
+        stroke-width: 2;
+        r: 5;
+      }
+
+      .star {
+        fill: #fdcb0b;
+      }
+    </style>
+  </head>
+  <body>
+    <script src="js/d3.v4.min.js"></script>
+    <script>
+      var t = d3.transition();
+
+      var svg = d3
+        .select("body")
+        .append("svg")
+        .attr("width", 960)
+        .attr("height", 500);
+
+      const starData =
+        "M150,25  179,111  269,111  197,165  223,251  150,200  77,251  103,165  31,111  121,111z";
+      const squareData =
+        "M31,25  90,25  150,25  210,25  269,25  269,138  269,251  150,251  31,251  31,138z";
+
+      // star
+      const star = svg
+        .append("path")
+        .classed("star", true)
+        .attr("d", starData);
+
+      function loopMorph(shape) {
+        const duration = 1000;
+        const delay = 500;
+
+        const shapeData = shape === "star" ? starData : squareData;
+
+        star
+          .transition()
+          .duration(duration)
+          .ease(d3.easeExp)
+          .attr("d", shapeData);
+
+        setTimeout(() => {
+          loopMorph(shape === "star" ? "square" : "star");
+        }, duration + delay);
+      }
+
+      loopMorph("square");
+    </script>
+  </body>
+</html>

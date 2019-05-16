@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Node splitting</title>
+    <style>
+      line.link {
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <script src="js/d3.v3.min.js"></script>
+    <script>
+      var width = 960,
+        height = 500;
+
+      var circles = d3.range(10).map(function(i) {
+        return {
+          radius: Math.random() * 12 + 8,
+          index: i,
+          radius: 15,
+          group: Math.floor(i / 4) % 4
+        };
+      });
+      var nodes = [{ index: -1, group: -1, radius: 200 }].concat(circles);
+
+      //var circles = nodes.slice(1)
+      var links = [
+        { source: circles[0], target: circles[1], type: "bond" },
+        { source: circles[1], target: circles[2], type: "bond" },
+        { source: circles[2], target: circles[3], type: "bond" },
+        { source: circles[3], target: circles[0], type: "bond" }
+      ];
+
+      var root = nodes[0];
+      var color = d3.scale.category10();
+
+      root.radius = 0;
+      root.fixed = true;
+
+      var force = d3.layout
+        .force()
+        .gravity(0.05)
+        //.charge(function(d, i) { return i ? 0 : -200; })
+        //.linkStrength(function(l, i) { return l.strength || 0 })
+        //.linkStrength(0.5)
+        //.linkDistance(10)
+        .nodes(nodes)
+        .size([width, height]);
+
+      force.start();
+
+      var svg = d3
+        .select("body")
+        .append("svg")
+        .attr("width", width)
+        .attr("height", height);
+
+      svg
+        .selectAll("circle")
+        .data(circles)
+        .enter()
+        .append("circle")
+        .classed("node", true)
+        .attr("r", function(d) {
+          return d.radius;
+        })
+        .style("fill", function(d, i) {
+          return color(d.group);
+        })
+        .on("mouseout", splitNode)
+        .call(force.drag);
+
+      function splitNode(d) {
+        var nodes = force.nodes();
+        console.log("d", d);
+
+        var index = nodes.length;
+        var jiggle = 5 + Math.random() * 10;
+
+        var newNode = {
+          index: index,
+          radius: Math.random() * 12 + 8,
+          group: d.group,
+          x: d.x + jiggle,
+          y: d.y + jiggle,
+          px: d.px + jiggle,
+          py: d.py + jiggle
+        };
+        nodes.push(newNode);
+
+        var newLink = {
+          source: d,
+          target: newNode,
+          type: "bond"
+        };
+        links.push(newLink);
+
+        svg
+          .append("circle")
+          .datum(newNode)
+          .classed("node", true)
+          .style("fill", function(d, i) {
+            return color(d.group);
+          })
+          .call(force.drag)
+          .on("mouseout", splitNode);
+
+        svg
+          .append("line")
+          .datum(newLink)
+          .classed("link", true)
+          .attr({
+            stroke: "#111"
+          });
+      }
+
+      svg
+        .selectAll("line")
+        .data(links)
+        .enter()
+        .append("line")
+        .classed("link", true)
+        .attr({
+          stroke: "#111"
+        });
+
+      force.on("tick", function(e) {
+        var nodes = force.nodes();
+
+        // collision detection
+        var q = d3.geom.quadtree(nodes);
+        nodes.forEach(function(node) {
+          q.visit(collide(node));
+        });
+
+        // strongly coupling certain nodes
+        links.forEach(function(link) {
+          var source = link.source;
+          var target = link.target;
+          if (link.type == "bond") {
+            var x = source.x - target.x;
+            var y = source.y - target.y;
+            var dist = Math.sqrt(x * x + y * y);
+            var r = source.radius + target.radius;
+
+            if (dist < r) {
+              dist = ((dist - r) / dist) * 0.5; //don't quite understand this
+              source.x -= x *= dist;
+              source.y -= y *= dist;
+              target.x += x;
+              target.y += y;
+            } else {
+              dist = -0.021; // not sure how to do the opposive of above
+              source.x += x *= dist;
+              source.y += y *= dist;
+              target.x -= x;
+              target.y -= y;
+            }
+          }
+          link.strength = 1;
+        });
+
+        svg.selectAll("circle.node").attr({
+          cx: function(d) {
+            return d.x;
+          },
+          cy: function(d) {
+            return d.y;
+          },
+          r: function(d) {
+            return d.radius;
+          }
+        });
+
+        svg.selectAll("line.link").attr({
+          x1: function(d) {
+            return d.source.x;
+          },
+          y1: function(d) {
+            return d.source.y;
+          },
+          x2: function(d) {
+            return d.target.x;
+          },
+          y2: function(d) {
+            return d.target.y;
+          }
+        });
+      });
+
+      svg.on("mousemove", function() {
+        //var p1 = d3.mouse(this);
+        //root.px = p1[0];
+        //root.py = p1[1];
+        force.resume();
+      });
+
+      function collide(node) {
+        var r = node.radius + 16,
+          nx1 = node.x - r,
+          nx2 = node.x + r,
+          ny1 = node.y - r,
+          ny2 = node.y + r;
+        return function(quad, x1, y1, x2, y2) {
+          if (quad.point && quad.point !== node) {
+            var x = node.x - quad.point.x,
+              y = node.y - quad.point.y,
+              dist = Math.sqrt(x * x + y * y),
+              r = node.radius + quad.point.radius;
+            if (dist < r) {
+              dist = ((dist - r) / dist) * 0.5;
+              node.x -= x *= dist;
+              node.y -= y *= dist;
+              quad.point.x += x;
+              quad.point.y += y;
+            }
+          }
+          return x1 > nx2 || x2 < nx1 || y1 > ny2 || y2 < ny1;
+        };
+      }
+    </script>
+  </body>
+</html>

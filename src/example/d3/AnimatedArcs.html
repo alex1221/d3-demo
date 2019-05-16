@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Animated Arcs</title>
+  </head>
+  <body>
+    <script src="js/d3.v4.min.js"></script>
+    <script>
+      var width = 960;
+      height = 500;
+
+      var arc_colors = ["#F3A54A", "#AA7CAA", "#CCDE66", "#4B90A6"];
+      var inner_radius = 60;
+      var radius_width = 10;
+
+      var svg = d3
+        .select("body")
+        .append("svg")
+        .attr("width", width)
+        .attr("height", height)
+        .append("g")
+        .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
+
+      var arc = d3.arc();
+
+      var data = [];
+      for (var k = 0; k < 4; k++) {
+        var score = 0.7 * Math.random();
+        var startAngle = Math.random() * 2 * Math.PI;
+        var endAngle = startAngle + score * 2 * Math.PI;
+        data.push({
+          startAngle: startAngle,
+          endAngle: endAngle,
+          innerRadius: inner_radius + k * radius_width,
+          outerRadius: inner_radius + (k + 1) * radius_width,
+          fill: arc_colors[k]
+        });
+      }
+
+      svg
+        .selectAll("path")
+        .data(data)
+        .enter()
+        .append("path")
+        .style("fill", function(d) {
+          return d.fill;
+        })
+        .attr("d", arc);
+
+      d3.interval(
+        function() {
+          svg
+            .selectAll("path")
+            .transition()
+            .duration(2000)
+            .attrTween("d", function(d) {
+              return arcTween(d, 0.7 * Math.random());
+            });
+        },
+        3000,
+        -3000
+      );
+
+      function arcTween(d, new_score) {
+        var new_startAngle = Math.random() * 2 * Math.PI;
+        var new_endAngle = new_startAngle + new_score * 2 * Math.PI;
+        var interpolate_start = d3.interpolate(d.startAngle, new_startAngle);
+        var interpolate_end = d3.interpolate(d.endAngle, new_endAngle);
+        return function(t) {
+          d.startAngle = interpolate_start(t);
+          d.endAngle = interpolate_end(t);
+          return arc(d);
+        };
+      }
+    </script>
+  </body>
+</html>

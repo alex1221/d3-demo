@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>thing 0007</title>
+    <style>
+      body {
+        margin: 0;
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas></canvas>
+    <script src="js/d3.v4.min.js"></script>
+    <script>
+      var width = 960;
+      var height = 500;
+
+      var num = 5000;
+      var frames = 120;
+
+      var canvas = d3.select("canvas").node();
+      canvas.width = width;
+      canvas.height = height;
+      ctx = canvas.getContext("2d");
+
+      ctx.globalCompositeOperation = "soft-light";
+
+      // colors stolen from Nadieh's block http://bl.ocks.org/nbremer/5cd07f2cb4ad202a9facfbd5d2bc842e
+      var colors = [
+        "#2c7bb6",
+        "#00a6ca",
+        "#00ccbc" /*,"#f9d057","#f29e2e","#e76818"*/
+      ];
+      var colorArray = colors.map(function(c) {
+        var rgb = d3.rgb(c);
+        return [rgb.r, rgb.g, rgb.b];
+      });
+      var data = d3.range(num).map(function(i) {
+        return {
+          x1: 50,
+          x2: 910,
+          y1: 50 + Math.random() * 400,
+          y2: 50 + Math.random() * 400,
+          color: colorArray[Math.floor(Math.random() * colorArray.length)]
+        };
+      });
+
+      ctx.fillStyle = "rgba(10,10,10,1)";
+      ctx.fillRect(0, 0, width, height);
+
+      function setStroke(op) {
+        //       ctx.strokeStyle = "rgba(250,250,250," + op + ")";
+        ctx.strokeStyle = "rgba(20,20,20," + op + ")";
+      }
+      ctx.lineWidth = 1;
+
+      var frame = 0;
+      var now = +new Date();
+      d3.timer(function(elapsed) {
+        var diff = +new Date() - now;
+
+        if (frame >= frames - 1) {
+          if (diff < 2500) return;
+          frame = 0;
+        } else if (diff > 50) {
+          frame += 1;
+          now = +new Date();
+        }
+
+        ctx.clearRect(0, 0, width, height);
+        //     ctx.fillStyle = 'rgba(10,10,10,1)'
+        ctx.fillRect(0, 0, width, height);
+
+        var interp = d3.easePolyIn.exponent(3)(frame / frames);
+        var i = 1 + Math.floor(interp * data.length);
+        //     console.log("frame", frame, i)
+        var fastf = (frame / frames) * 1.5;
+        if (fastf > 1) fastf = 1;
+        //var opinterp = d3.easePolyIn.exponent(1.05)(fastf)
+        var opinterp = fastf;
+        var op = (1 - opinterp) * 0.575 + 0.4;
+
+        //     setStroke(op)
+
+        var drawings = data.slice(0, i);
+        var d;
+        for (var k = 0; k < i; k++) {
+          d = drawings[k];
+          // console.log("d",k, d.strokes.length)
+          ctx.strokeStyle = "rgba(" + d.color + "," + op + ")";
+          ctx.beginPath();
+          ctx.moveTo(d.x1, d.y1);
+          ctx.lineTo(d.x2, d.y2);
+          ctx.stroke();
+        }
+      });
+    </script>
+  </body>
+</html>

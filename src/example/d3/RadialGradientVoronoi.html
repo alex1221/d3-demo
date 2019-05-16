@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Radial Gradient Voronoi</title>
+    <style>
+      body {
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <script src="js/d3.v5.min.js"></script>
+    <script src="js/RadialGradientVoronoi/jeezy.min.js"></script>
+    <script src="js/RadialGradientVoronoi/geometric.min.js"></script>
+    <script>
+      const width = window.innerWidth,
+        height = window.innerHeight;
+
+      // Generate some random data
+      const data = d3.range(0, 200).map(_ => ({
+        x: jz.num.randBetween(0, width),
+        y: jz.num.randBetween(0, height)
+      }));
+
+      const voronoi = d3
+        .voronoi()
+        .x(d => d.x)
+        .y(d => d.y)
+        .size([width, height])(data);
+
+      const polygons = voronoi.polygons().map(d => {
+        // To avoid a thin black line between each circle,
+        // increase the size of each voronoi polygon by .99px
+        d.points = d.map(p => {
+          var a = geometric.lineAngle([[d.data.x, d.data.y], p]);
+          return geometric.pointTranslate(p, a, 0.99);
+        });
+
+        return d;
+      });
+
+      // Lists of colors to loop through
+      const colorArray = [
+        [
+          "#fff7f3",
+          "#fde0dd",
+          "#fcc5c0",
+          "#fa9fb5",
+          "#f768a1",
+          "#dd3497",
+          "#ae017e",
+          "#7a0177",
+          "#49006a"
+        ],
+        [
+          "#ffffd9",
+          "#edf8b1",
+          "#c7e9b4",
+          "#7fcdbb",
+          "#41b6c4",
+          "#1d91c0",
+          "#225ea8",
+          "#253494",
+          "#081d58"
+        ],
+        [
+          "#ffffcc",
+          "#ffeda0",
+          "#fed976",
+          "#feb24c",
+          "#fd8d3c",
+          "#fc4e2a",
+          "#e31a1c",
+          "#bd0026",
+          "#800026"
+        ]
+      ];
+      let currArray = 0;
+      let colors = colorArray[currArray].map((d, i, e) => ({
+        color: d,
+        pct: (i / (e.length - 1)) * 100
+      }));
+
+      const svg = d3
+        .select("body")
+        .append("svg")
+        .attr("width", width)
+        .attr("height", height);
+
+      const rect = svg
+        .append("rect")
+        .attr("width", width)
+        .attr("height", height)
+        .style("fill", colors[colors.length - 1].color);
+
+      const defs = svg.append("defs");
+
+      const gradient = defs.append("radialGradient").attr("id", "gradient");
+
+      updateColors();
+
+      defs
+        .selectAll("clipPath")
+        .data(polygons)
+        .enter()
+        .append("clipPath")
+        .attr("id", (d, i) => "clip-path-" + i)
+        .append("path")
+        .attr("d", d => "M" + d.points.join("L") + "Z");
+
+      svg
+        .selectAll("circle")
+        .data(polygons)
+        .enter()
+        .append("circle")
+        .attr("r", 50)
+        .attr("cx", d => d.data.x)
+        .attr("cy", d => d.data.y)
+        .style("clip-path", (d, i) => "url(#clip-path-" + i + ")")
+        .style("fill", "url(#gradient)");
+
+      d3.interval(updateColors, 2000);
+
+      function updateColors() {
+        colors = colorArray[currArray].map((d, i, e) => ({
+          color: d,
+          pct: (i / (e.length - 1)) * 100
+        }));
+
+        let stops = gradient.selectAll("stop").data(colors);
+
+        stops
+          .transition()
+          .duration(1900)
+          .attr("stop-color", d => d.color);
+
+        stops
+          .enter()
+          .append("stop")
+          .attr("offset", d => d.pct + "%")
+          .attr("stop-color", d => d.color);
+
+        rect
+          .transition()
+          .duration(1900)
+          .style("fill", colors[colors.length - 1].color);
+
+        ++currArray;
+        if (currArray === colorArray.length) {
+          currArray = 0;
+        }
+      }
+    </script>
+  </body>
+</html>

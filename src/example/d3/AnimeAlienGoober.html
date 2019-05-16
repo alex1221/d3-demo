@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Alien Goober</title>
+    <style>
+      html,
+      body,
+      header {
+        background-color: #111116;
+      }
+
+      @-webkit-keyframes shadowGrow {
+        0%,
+        100% {
+          opacity: 0.3;
+        }
+        50% {
+          opacity: 0.1;
+        }
+      }
+      @keyframes shadowGrow {
+        0%,
+        100% {
+          opacity: 0.3;
+        }
+        50% {
+          opacity: 0.1;
+        }
+      }
+      @-webkit-keyframes bob {
+        0%,
+        100% {
+          top: 52%;
+        }
+        50% {
+          top: 50%;
+        }
+      }
+      @keyframes bob {
+        0%,
+        100% {
+          top: 52%;
+        }
+        50% {
+          top: 50%;
+        }
+      }
+      @-webkit-keyframes blink {
+        0%,
+        100% {
+          -webkit-transform: scaley(1);
+          transform: scaley(1);
+        }
+        50% {
+          -webkit-transform: scaley(0);
+          transform: scaley(0);
+          transform-origin: 50% 50%;
+          -webkit-transform-origin: 50% 50%;
+        }
+        90% {
+          -webkit-transform: scaley(1);
+          transform: scaley(1);
+        }
+      }
+      @keyframes blink {
+        0%,
+        100% {
+          -webkit-transform: scaley(1);
+          transform: scaley(1);
+        }
+        50% {
+          -webkit-transform: scaley(0);
+          transform: scaley(0);
+          transform-origin: 50% 50%;
+          -webkit-transform-origin: 50% 50%;
+        }
+        90% {
+          -webkit-transform: scaley(1);
+          transform: scaley(1);
+        }
+      }
+      body {
+        background-color: #f8f9de;
+      }
+
+      svg {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        -webkit-transform: translatex(-50%) translatey(-50%) scale(0.8);
+        transform: translatex(-50%) translatey(-50%) scale(0.8);
+        -webkit-animation: bob 4s ease infinite alternate;
+        animation: bob 4s ease infinite alternate;
+      }
+      svg ellipse {
+        -webkit-animation: blink 0.3s ease-in-out 2s 2;
+        animation: blink 0.3s ease-in-out 2s 2;
+        transform-origin: 0 0;
+        -webkit-transform-origin: 0 0;
+        opacity: 0.9;
+      }
+
+      div.shadow {
+        width: 175px;
+        height: 10px;
+        background: radial-gradient(black, transparent 80%, transparent);
+        position: absolute;
+        z-index: -1;
+        opacity: 0.3;
+        left: 50%;
+        top: 90%;
+        -webkit-transform: translatex(-50%);
+        transform: translatex(-50%);
+        -webkit-animation: shadowGrow 4s ease infinite alternate;
+        animation: shadowGrow 4s ease infinite alternate;
+      }
+
+      .st0 {
+        fill: #55b948;
+      }
+      .st1 {
+        fill: #3a3335;
+      }
+    </style>
+  </head>
+  <body>
+    <svg
+      version="1.1"
+      xmlns="http://www.w3.org/2000/svg"
+      xmlns:xlink="http://www.w3.org/1999/xlink"
+      x="0px"
+      y="0px"
+      width="364.9px"
+      height="363px"
+      viewBox="0 0 364.9 363"
+      style="enable-background:new 0 0 364.9 363;"
+      xml:space="preserve"
+    >
+      <defs></defs>
+      <path
+        class="st0"
+        d="M179,0C66.3,0,0,61.7,0,144.6s13,172.6,56,215.6c16.9,16.9,45.1-50.8,82-45.2c28.5,4.3,5.5,32.9,35,47.5
+     c13.7,6.8,39.5-44.5,64.2-44.2c28.4,0.4,36.3,41.9,64.8,41.9s63-151.7,63-215.6S291.6,0,179,0z"
+      />
+      <ellipse class="st1" cx="140.9" cy="114.1" rx="17.9" ry="29.2" />
+      <ellipse class="st1" cx="207.6" cy="114.1" rx="17.9" ry="29.2" />
+    </svg>
+    <div class="shadow"></div>
+    <script src="js/lib/anime.min.js"></script>
+    <script>
+      anime({
+        targets: [document.getElementsByTagName("path")[0]],
+        d:
+          "M179,0C66.3,0,0,61.7,0,144.6s13,127.6,56,170.6c16.9,16.9,45.1-50.8,82-45.2c28.5,4.3,5.5,32.9,35,47.5c13.7,6.8,39.5-44.5,64.2-44.2c28.4,0.4,36.3,41.9,64.8,41.9s63-106.7,63-170.6S291.6,0,179,0z",
+        duration: 2000,
+        loop: true,
+        direction: "alternate",
+        easing: "linear"
+      });
+    </script>
+  </body>
+</html>

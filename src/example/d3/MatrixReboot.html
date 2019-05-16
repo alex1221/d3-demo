@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>matrix: reboot</title>
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="resource/MatrixReboot/style.css"
+    />
+  </head>
+  <body>
+    <svg width="960" height="250"></svg>
+    <div id="math">
+      <div id="mtx_transform" class="matrix unselectable" style="width:180px">
+        <input value="1.5" /><input value="0.0" /><input value="0.0" />
+        <input value="0.0" /><input value="1.0" /><input value="0.0" />
+        <div plain style="position: absolute; top: 120px;">0</div>
+        <div plain style="position: absolute; top: 120px; left:70px">0</div>
+        <div plain style="position: absolute; top: 120px; left:130px">1</div>
+        <div class="label">
+          the transformation matrix
+          <br />
+          <span>(adjust the numbers!)</span>
+        </div>
+      </div>
+      <div id="mtx_input" class="matrix unselectable" style="width:60px">
+        <div plain style="position: absolute; top: 0px;">x</div>
+        <div plain style="position: absolute; top: 60px;">y</div>
+        <div plain style="position: absolute; top: 120px;">1</div>
+        <div class="label">
+          a vector
+          <br />
+          <span>(hover over the dots)</span>
+        </div>
+      </div>
+      <div class="equals"></div>
+      <div id="mtx_expanded" class="matrix unselectable" expanded>
+        <div><span class="left">1</span>*<span class="right">1</span></div>
+        <div plus><span class="left">1</span>*<span class="right">1</span></div>
+        <div plus><span class="left">1</span>*<span class="right">1</span></div>
+        <div><span class="left">0</span>*<span class="right">0</span></div>
+        <div plus><span class="left">0</span>*<span class="right">0</span></div>
+        <div plus><span class="left">0</span>*<span class="right">0</span></div>
+        <div><span class="left">0</span>*<span class="right">x</span></div>
+        <div plus><span class="left">0</span>*<span class="right">y</span></div>
+        <div plus><span class="left">1</span>*<span class="right">1</span></div>
+        <div class="label">
+          how to multiply transformation matrix &amp; vector
+          <br />
+          <span>(hover over each cell)</span>
+        </div>
+      </div>
+      <div class="equals"></div>
+      <div id="mtx_output" class="matrix" style="width:60px">
+        <div>x'</div>
+        <div>y'</div>
+        <div>1</div>
+        <div class="label">
+          new vector
+          <br />
+          <span>(hover over the dots)</span>
+        </div>
+      </div>
+    </div>
+    <script src="js/d3.min.js"></script>
+    <script src="js/MatrixReboot/scrubbing.js"></script>
+    <script>
+      var transform = {}; // global transform
+      var t = transform; // convenience
+      var bullets = []; // global data
+
+      var mtx_inputs = document.querySelectorAll("#mtx_input div");
+      var mtx_outputs = document.querySelectorAll("#mtx_output div");
+      var mtx_expanded_left = document.querySelectorAll(
+        "#mtx_expanded span.left"
+      );
+      var mtx_expanded_right = document.querySelectorAll(
+        "#mtx_expanded span.right"
+      );
+      var mtx_expanded = document.querySelectorAll("#mtx_expanded")[0];
+      var mtx_transforms = document.querySelectorAll("#mtx_transform input");
+
+      function calculate(x, y) {
+        x = x || 0;
+        y = y || 0;
+        var x2 = t.a * x + t.b * y + t.tx;
+        var y2 = t.c * x + t.d * y + t.ty;
+        return { x: x2, y: y2 };
+      }
+
+      function render() {
+        var xscale = d3.scale
+          .linear()
+          .domain([-1, 1])
+          .range([250, 610]);
+        var yscale = d3.scale
+          .linear()
+          .domain([-1, 1])
+          .range([200, 50]);
+
+        var transformed = bullets.map(function(d) {
+          return calculate(d.x, d.y);
+        });
+
+        var svg = d3.select("svg");
+
+        function hover(d, i) {
+          mtx_inputs[0].innerHTML = bullets[i].x.toFixed(1);
+          mtx_inputs[1].innerHTML = bullets[i].y.toFixed(1);
+          d3.select(mtx_inputs[0]).style("border", "3px solid red");
+          d3.select(mtx_inputs[1]).style("border", "3px solid red");
+          function filter(f, j) {
+            return j === i;
+          }
+          d3.selectAll("line")
+            .filter(filter)
+            .style("stroke", "red");
+          d3.selectAll("circle.bullet")
+            .filter(filter)
+            .style("stroke", "red");
+          d3.selectAll("circle.transformed")
+            .filter(filter)
+            .style({ stroke: "red", fill: "red" });
+        }
+        function mouseout(d, i) {
+          mtx_inputs[0].innerHTML = "x";
+          mtx_inputs[1].innerHTML = "y";
+          d3.select(mtx_inputs[0]).style("border", "3px solid #eee");
+          d3.select(mtx_inputs[1]).style("border", "3px solid #eee");
+          d3.selectAll("line").style("stroke", "#111");
+          d3.selectAll("circle.bullet").style("stroke", "#111");
+          d3.selectAll("circle.transformed").style({
+            stroke: "#111",
+            fill: "#111"
+          });
+        }
+
+        var lines = svg.selectAll("line").data(bullets);
+        lines
+          .enter()
+          .append("line")
+          .on("mouseover", hover)
+          .on("mouseout", mouseout);
+        lines
+          .transition()
+          .duration(170)
+          .ease("linear")
+          .attr({
+            x1: function(d, i) {
+              return xscale(d.x);
+            },
+            y1: function(d, i) {
+              return yscale(d.y);
+            },
+            x2: function(d, i) {
+              return xscale(transformed[i].x);
+            },
+            y2: function(d, i) {
+              return yscale(transformed[i].y);
+            },
+            stroke: "#111"
+          });
+
+        var circlesB = svg.selectAll("circle.bullet").data(bullets);
+        circlesB
+          .enter()
+          .append("circle")
+          .classed("bullet", true)
+          .on("mouseover", hover)
+          .on("mouseout", mouseout);
+        circlesB
+          .attr({
+            r: 4,
+            fill: "none",
+            stroke: "#111"
+          })
+          .attr({
+            cx: function(d) {
+              return xscale(d.x);
+            },
+            cy: function(d) {
+              return yscale(d.y);
+            }
+          });
+
+        var circlesT = svg.selectAll("circle.transformed").data(transformed);
+        circlesT
+          .enter()
+          .append("circle")
+          .classed("transformed", true)
+          .on("mouseover", hover)
+          .on("mouseout", mouseout);
+        circlesT
+          .attr({
+            r: 8,
+            fill: "#111",
+            stroke: "#111"
+          })
+          .transition()
+          .duration(170)
+          .ease("linear")
+          .attr({
+            cx: function(d) {
+              return xscale(d.x);
+            },
+            cy: function(d) {
+              return yscale(d.y);
+            }
+          });
+      }
+
+      function updateMatrixLeft() {
+        for (var i = 0; i < 6; i++) {
+          var m = mtx_expanded_left[i];
+          var t = mtx_transforms[i];
+          m.innerHTML = t.value;
+        }
+        transform.a = parseFloat(mtx_transforms[0].value) || 0;
+        transform.b = parseFloat(mtx_transforms[1].value) || 0;
+        transform.tx = parseFloat(mtx_transforms[2].value) || 0;
+        transform.c = parseFloat(mtx_transforms[3].value) || 0;
+        transform.d = parseFloat(mtx_transforms[4].value) || 0;
+        transform.ty = parseFloat(mtx_transforms[5].value) || 0;
+
+        render();
+      }
+
+      setupScrubbing(updateMatrixLeft);
+      for (var i = 0; i < mtx_transforms.length; i++) {
+        var input = mtx_transforms[i];
+        input.onchange = updateMatrixLeft;
+        makeScrubbable(input);
+      }
+
+      // get the data and trigger the initial rendering
+      d3.json("resource/MatrixReboot/bullets.json", function(err, data) {
+        bullets = data.map(function(d) {
+          return { x: d.x, y: d.y };
+        });
+        updateMatrixLeft();
+      });
+    </script>
+  </body>
+</html>

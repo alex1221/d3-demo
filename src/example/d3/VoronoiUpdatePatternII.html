@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Voronoi Update Pattern II</title>
+  </head>
+  <body>
+    <script src="js/d3.v4.min.js"></script>
+    <script>
+      var alphabet = "abcdefghijklmnopqrstuvwxyz".split("");
+
+      var width = window.innerWidth,
+        height = window.innerHeight;
+
+      var x = d3
+        .scaleLinear()
+        .domain([0, 100])
+        .range([0, width]);
+      var y = d3
+        .scaleLinear()
+        .domain([0, 100])
+        .range([height, 0]);
+
+      var svg = d3
+        .select("body")
+        .append("svg")
+        .attr("width", width)
+        .attr("height", height);
+
+      var g = svg
+        .append("g")
+        .attr("width", width)
+        .attr("height", height);
+
+      function redraw(data) {
+        // transition
+        var t = d3.transition().duration(750);
+
+        // voronoi tesselation
+        var voronoi = d3
+          .voronoi()
+          .x(function(d) {
+            return x(d.x);
+          })
+          .y(function(d) {
+            return y(d.y);
+          })
+          .extent([[0, 0], [width, height]]);
+
+        // JOIN
+        var voronoiGroup = g
+          .selectAll(".voronoi")
+          .data(voronoi(data).polygons(), function(d) {
+            return d.data.name;
+          });
+
+        var text = g.selectAll(".letter").data(data, function(d) {
+          return d.name;
+        });
+
+        // EXIT
+        voronoiGroup
+          .exit()
+          .style("fill", "#b26745")
+          .transition(t)
+          .style("opacity", 1e-6)
+          .remove();
+
+        text
+          .exit()
+          .transition(t)
+          .style("opacity", 1e-6)
+          .remove();
+
+        // UPDATE
+        voronoiGroup
+          .transition(t)
+          .delay(250)
+          .attr("d", function(d) {
+            return d ? "M" + d.join("L") + "Z" : null;
+          })
+          .style("fill", "#3a403d");
+
+        text
+          .transition(t)
+          .delay(250)
+          .attr("x", function(d) {
+            return x(d.x);
+          })
+          .attr("y", function(d) {
+            return y(d.y);
+          });
+
+        // ENTER
+        voronoiGroup
+          .enter()
+          .append("path")
+          .attr("class", "voronoi")
+          .attr("d", function(d) {
+            return d ? "M" + d.join("L") + "Z" : null;
+          })
+          .style("fill", "#45b29d")
+          .style("opacity", 1e-6)
+          .transition(t)
+          .delay(250)
+          .style("opacity", 1);
+
+        text
+          .enter()
+          .append("text")
+          .attr("class", "letter")
+          .attr("x", function(d) {
+            return x(d.x);
+          })
+          .attr("y", function(d) {
+            return y(d.y);
+          })
+          .attr("dy", 12)
+          .attr("text-anchor", "middle")
+          .style("opacity", 1e-6)
+          .transition(t)
+          .delay(250)
+          .style("opacity", 1)
+          .text(function(d) {
+            return d.name;
+          });
+      }
+
+      d3.interval(function() {
+        redraw(randomizeData());
+      }, 1500);
+
+      /*FUNCTIONS*/
+
+      function randomizeData() {
+        var d0 = shuffle(alphabet),
+          d1 = [],
+          d2 = [];
+        for (var i = 0; i < random(1, alphabet.length); i++) {
+          d1.push(d0[i]);
+        }
+        d1.forEach(function(d) {
+          d2.push({ name: d, x: random(0, 100), y: random(0, 100) });
+        });
+        return d2;
+      }
+
+      function random(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+      }
+
+      function shuffle(array) {
+        var m = array.length,
+          t,
+          i;
+
+        // While there remain elements to shuffle…
+        while (m) {
+          // Pick a remaining element…
+          i = Math.floor(Math.random() * m--);
+
+          // And swap it with the current element.
+          t = array[m];
+          array[m] = array[i];
+          array[i] = t;
+        }
+
+        return array;
+      }
+    </script>
+  </body>
+</html>

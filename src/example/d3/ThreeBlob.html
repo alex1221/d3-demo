@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>ThreeBlob</title>
+    <style>
+      #chart-canvas {
+        position: absolute;
+        z-index: 1;
+      }
+
+      #events-canvas {
+        position: relative;
+        top: 0px;
+        left: 0px;
+        z-index: 2;
+      }
+      .hidden {
+        display: none;
+      }
+
+      #plot {
+        position: relative;
+      }
+    </style>
+  </head>
+  <body>
+    <button type="button" onclick="taskResponse.realCentroid()">
+      Click for real answer!
+    </button>
+    <div id="plot"></div>
+    <div id="warning" style="color:red">
+      Warning: The "Next" button will only be enabled when your centroid region
+      is on the plot.
+    </div>
+    <script src="js/d3.v4.min.js"></script>
+    <script src="js/ThreeBlob/chart.js"></script>
+    <script>
+      var taskResponse;
+      d3.csv(
+        "resource/ThreeBlob/make-dataset.csv",
+        function(d) {
+          d.xDom = +d.xDom;
+          d.yDom = +d.yDom;
+          return d;
+        },
+        function(err, data) {
+          if (err) {
+            console.log(err);
+          }
+          taskResponse = chart()
+            .width(500)
+            .height(500)
+            .pointType("solid")
+            .xDomain("xDom")
+            .yDomain("yDom")
+            .zDomain("class")
+            .autoPlay(true)
+            .animationSpeed(85)
+            .tutorial(true);
+
+          d3.select("#plot")
+            .datum(data)
+            .call(taskResponse);
+        }
+      );
+    </script>
+  </body>
+</html>

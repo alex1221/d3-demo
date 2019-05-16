@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>siumei & ian</title>
+    <style>
+      body {
+        margin: 0;
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+      }
+
+      text {
+        font-size: 140px;
+        font-family: "Libre Baskerville", serif;
+        text-anchor: middle;
+      }
+      .mei {
+        fill: "#f33";
+      }
+    </style>
+  </head>
+  <body>
+    <script src="js/d3.v4.min.js"></script>
+    <script>
+      var cX = 500;
+      var cY = 300;
+      var txm = 50;
+      var mei = [
+        { c: "s", tx: txm + 365 },
+        { c: "i", tx: txm + 320 },
+        { c: "u", tx: txm + 265 },
+        { c: "m", tx: txm + 155 },
+        { c: "e", tx: txm + 55 },
+        { c: "i", tx: txm }
+      ];
+      var txi = 130;
+      var ian = [
+        { c: "i", tx: txi },
+        { c: "a", tx: txi + 55 },
+        { c: "n", tx: txi + 130 }
+      ];
+
+      var svg = d3
+        .select("body")
+        .append("svg")
+        .attr("width", 960)
+        .attr("height", 500);
+
+      // RENDER MEI
+      var meig = svg.selectAll("g.mei").data(mei);
+      var meigE = meig
+        .enter()
+        .append("g")
+        .classed("mei", true)
+        .attr("transform", function(d, i) {
+          if (i == 5) return "translate(" + [cX, cY] + ")";
+          return "translate(" + [cX - 25 - txm, cY] + ")";
+        })
+        .style("opacity", function(d, i) {
+          if (i == 5) return 1;
+          return 0;
+        });
+      meigE.append("rect");
+      //.attr("width", 20)
+      //.attr("height", 20)
+      meigE.append("text").text(function(d) {
+        return d.c;
+      });
+
+      meig = meigE.merge(meig);
+      meig
+        .transition()
+        .duration(function(d, i) {
+          if (i == 5) return 1000;
+          return 1200 + (5 - i) * 200;
+        })
+        .delay(function(d, i) {
+          if (i == 5) return 0;
+          return 1000 + (5 - i) * 100;
+        })
+        .style("opacity", 1)
+        .attr("transform", function(d, i) {
+          return "translate(" + [cX - d.tx, cY] + ")";
+        });
+
+      // RENDER IAN
+      var iang = svg.selectAll("g.ian").data(ian);
+      var iangE = iang
+        .enter()
+        .append("g")
+        .classed("ian", true)
+        .attr("transform", function(d, i) {
+          if (i == 0) return "translate(" + [cX, cY] + ")";
+          return "translate(" + [cX + txi + 25, cY] + ")";
+        })
+        .style("opacity", function(d, i) {
+          if (i == 0) return 1;
+          return 0;
+        });
+      iangE.append("rect");
+      //.attr("width", 20)
+      //.attr("height", 20)
+      iangE.append("text").text(function(d) {
+        return d.c;
+      });
+
+      iang = iangE.merge(iang);
+      iang
+        .transition()
+        .duration(function(d, i) {
+          return 1000 + i * 500;
+        })
+        .delay(function(d, i) {
+          if (i == 0) return 0;
+          return 400 + i * 600;
+        })
+        .style("opacity", 1)
+        .attr("transform", function(d, i) {
+          return "translate(" + [cX + d.tx, cY] + ")";
+        });
+
+      var amp = svg
+        .append("text")
+        .text("&")
+        .attr("x", cX + 40)
+        .attr("y", cY)
+        .style("fill", "#111")
+        .style("font-size", "135px")
+        .style("opacity", 0)
+        .transition()
+        .ease(d3.easeSin)
+        .duration(2000)
+        .delay(2500)
+        .style("opacity", 1)
+        .style("fill", "#992300");
+    </script>
+  </body>
+</html>

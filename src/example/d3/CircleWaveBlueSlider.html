@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Circle_Wave_blue_slider</title>
+  </head>
+  <body>
+    <svg width="550" height="500"></svg>
+    <script src="js/d3.v5.min.js"></script>
+    <script>
+      d3.select("body")
+        // 	.style("background-color", "lightyellow")
+        // 	.style("background-color", "lightgrey")
+        .style("background-color", "snow");
+
+      var svg = d3.select("svg"),
+        width = +svg.attr("width"),
+        height = +svg.attr("height"),
+        angles = d3.range(0, 2 * Math.PI, Math.PI / 200);
+
+      var visits = 24;
+
+      var path = svg
+        .append("g")
+        .attr("transform", "translate(" + width / 3 + "," + height / 3 + ")")
+        //     .attr("fill", "black")
+        .attr("stroke-width", 13)
+        .attr("stroke-linejoin", "round")
+        .selectAll("path")
+        //   .data(["red", "purple", "deeppink"])
+        .data(["cyan", "snow", "lightskyblue"])
+        //   .data(["cyan", "dodgerblue", "midnightblue"])
+        .enter()
+        .append("path")
+        .attr("stroke", function(d) {
+          return d;
+        })
+        .style("mix-blend-mode", "multiply")
+        .style("mix-blend-mode", "darken")
+        .attr("fill", "cyan")
+        .attr("fill", "royalblue")
+        // 		.attr("fill", "navy")
+        .attr("opacity", 0.3)
+        .datum(function(d, i) {
+          return d3
+            .radialLine()
+            .curve(d3.curveLinearClosed)
+            .angle(function(a) {
+              return a;
+            })
+            .radius(function(a) {
+              var t = d3.now() / 2000;
+              return (
+                120 +
+                Math.cos(a * 5 - (i * 2 * Math.PI) / 4 + t) *
+                  Math.pow((1 + Math.cos(a - t)) / 3, 3) *
+                  38
+              );
+            });
+        });
+
+      d3.timer(function() {
+        path.attr("d", function(d) {
+          return d(angles);
+        });
+      });
+
+      svg
+        .append("text")
+        .attr("font-size", 125)
+        .attr("font-family", "Papyrus,fantasy")
+        .attr("font-weight", 500)
+        .attr("stroke", "navy")
+        // 		.attr("stroke", "snow")
+        .attr("stroke-width", 1.3)
+        .attr("fill", "snow")
+        // 		.attr("fill", "navy")
+        // 		.attr("fill", "aquamarine")
+        .attr("text-anchor", "middle")
+        .attr("opacity", 0.9)
+        .text(visits)
+        .attr("transform", "translate(" + width / 3 + "," + height / 2.5 + ")");
+    </script>
+  </body>
+</html>

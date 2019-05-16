@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>collapsible sankey tree</title>
+    <style type="text/css">
+      body {
+        background-color: #090011;
+        font-family: "Average Sans";
+      }
+
+      .node rect {
+        cursor: pointer;
+        fill: #fff;
+        stroke-width: 2px;
+      }
+
+      .node text {
+        font-family: "Average Sans";
+        z-index: 100;
+        font-size: 18px;
+      }
+
+      path.leftlink {
+        stroke: "#3b995a";
+        fill: none;
+      }
+      path.rightlink {
+        fill: none;
+        stroke: "#f24d4d";
+      }
+    </style>
+  </head>
+  <body text="white">
+    <div id="body"></div>
+    <script src="js/d3.v3.min.js"></script>
+    <script type="text/javascript">
+      var w = 1280,
+        h = 800,
+        i = 0,
+        max_node_width = 110,
+        layer_height = 140, //y difference between nodes (adjustable)
+        rect_height = 10, //global height of every node (adjustable to preference)
+        root,
+        adjustMap = {},
+        n_samples,
+        line = d3.svg.line().interpolate("basis");
+      /*   line = d3.svgline()
+              .curve('d3curveLinear');*/
+
+      //init tree
+      d3.json("resource/CollapsibleSankeyTree/note.json", load_dataset);
+      var tree = d3.layout.tree().size([h, w]);
+      var j = 0;
+      var diagonal = d3.svg.diagonal().projection(function(d, i) {
+        return [d.x, d.y];
+      });
+
+      //tree svg
+      var vis = d3
+        .select("#body")
+        .append("svg:svg")
+        .attr("width", w)
+        .attr("height", h + 20)
+        .style("fill", "white")
+        .append("svg:g")
+        .attr("transform", "translate(" + -10 + "," + 20 + ")");
+
+      function load_dataset(json) {
+        root = json;
+
+        n_samples = root.samples; //total number of samples in tree
+
+        //recursively toggles all nodes in tree
+        function toggleAll(d) {
+          if (d && d.children) {
+            d.children.forEach(toggleAll);
+            toggle(d);
+          }
+        }
+
+        function scaleAll(d) {
+          scale(d);
+          if (d && d.children) {
+            d.children.forEach(scaleAll);
+          }
+        }
+        scaleAll(root);
+        // Initialize the display to show a few nodes.
+        // turns off all not in the first layer
+        root.children.forEach(toggleAll);
+        //draws
+        update(root);
+      }
+
+      function update(source) {
+        var duration = d3.event && d3.event.altKey ? 5000 : 500;
+
+        // Compute the new tree layout.
+        var nodes = tree.nodes(root).reverse();
+
+        // Normalize for fixed-depth.
+        nodes.forEach(function(d) {
+          d.y = d.depth * layer_height;
+        });
+
+        // Update the nodes…
+        var node = vis.selectAll("g.node").data(nodes, function(d) {
+          return d.id || (d.id = ++i);
+        });
+
+        // Enter any new nodes at the parent's previous position.
+        var nodeEnter = node
+          .enter()
+          .append("svg:g")
+          .attr("class", "node")
+          .attr("transform", function(d) {
+            return "translate(" + source.x + "," + source.y + ")";
+          })
+          .on("click", function(d) {
+            toggle(d);
+            update(d);
+          });
+
+        /* green box*/
+        nodeEnter
+          .append("svg:rect")
+          .attr("x", function(d) {
+            return -d.value[0] / 2;
+          })
+          .attr("width", function(d) {
+            return d.value[0];
+          })
+          .attr("height", rect_height)
+          .style("fill", function(d) {
+            return "#1b511f";
+          });
+
+        // description of split
+        // designed so that position is relative to node
+        // content of text is specified in json
+        nodeEnter
+          .append("svg:text")
+          .attr("x", function(d) {
+            if (d && d.parent && d.parent.x > d.x) {
+              return -max_node_width * 0.8;
+            } else {
+              return d.samples - max_node_width / 10;
+            }
+          }) //text is outside tree
+          .attr("y", -layer_height / 3) //text displays a little above node
+          .text(function(d) {
+            return d.label;
+          })
+          .style("stroke", function(d) {
+            return "";
+          })
+          .style("fill", function(d) {
+            return "white";
+          });
+
+        /* red box*/
+        nodeEnter
+          .append("svg:rect")
+          .attr("x", function(d) {
+            if (d.value[0]) {
+              return d.value[0] / 2;
+            } else {
+              return -d.value[1] / 2;
+            } //position depends on size of green box
+          })
+          .attr("width", function(d) {
+            return d.value[1];
+          })
+          .attr("height", rect_height)
+          .style("fill", function(d) {
+            return "#e21111";
+          });
+
+        // invisible box surrounding both
+        // used for mouseover effects
+        nodeEnter
+          .append("svg:rect")
+          .attr("x", function(d) {
+            return -d.value[0] / 2;
+          })
+          .attr("width", function(d) {
+            return d.value[0] + d.value[1];
+          })
+          .attr("height", rect_height)
+          .style("fill", "pink")
+          .style("fill-opacity", 0.1)
+          .on("mouseover", function(d) {
+            d3.select(this).style("stroke", "white");
+          })
+          .on("mouseout", function(d) {
+            d3.select(this).style("stroke", "");
+          })
+          .append("svg:title")
+          .text(function(d) {
+            return Math.round(
+              ((d.value[0] + d.value[1]) * n_samples) / max_node_width
+            );
+          });
+
+        // Creating red green and green path objects
+        // Paths will connect upward from child to parent
+        // paths are broken into 2 classes (one for each category)
+        // this is because the math is a little different depending on path color
+
+        nodeEnter
+          .append("svg:path")
+          .attr("class", "leftlink")
+          .style("stroke", "#3b995a")
+          .style("stroke-width", function(d) {
+            return d.value[0];
+          })
+          .attr("transform", function(d) {
+            return "scale(" + 0.1 + "," + 0.1 + ")";
+          }) //path starts tiny
+          .on("mouseover", function() {
+            d3.select(this).attr("stroke-opacity", ".7");
+          })
+          .on("mouseout", function() {
+            d3.select(this).attr("stroke-opacity", "1");
+          })
+          .append("svg:title")
+          .text(function(d) {
+            return Math.round((d.value[0] * n_samples) / max_node_width);
+          }); //displays tooltip on mouseover
+
+        nodeEnter
+          .append("svg:path")
+          .attr("class", "rightlink")
+          .style("stroke", "#f24d4d")
+          .style("stroke-width", function(d) {
+            return d.value[0];
+          })
+          .attr("transform", function(d) {
+            return "scale(" + 0.1 + "," + 0.1 + ")";
+          }) //path starts tiny
+          .on("mouseover", function() {
+            d3.select(this).attr("stroke-opacity", ".7");
+          })
+          .on("mouseout", function() {
+            d3.select(this).attr("stroke-opacity", "1");
+          })
+          .append("svg:title")
+          .text(function(d) {
+            return Math.round((d.value[1] * n_samples) / max_node_width);
+          }); //displays tooltip on mouseover
+
+        // Transition nodes to their new position.
+        var nodeUpdate = node
+          .transition()
+          .duration(duration)
+          .attr("transform", function(d) {
+            return "translate(" + d.x + "," + d.y + ")";
+          });
+
+        // handles tricky math to create path from child node to parent
+        // each path is composed of 4 points (0/3 1/3 2/3 3/3) up the path
+        //.leftlink = green path, .rightlink = red path
+        nodeUpdate
+          .select(".leftlink")
+          .style("stroke-width", function(d) {
+            return d.value[0];
+          })
+
+          .style("stroke", "#3b995a")
+          .attr("d", function(d) {
+            var sourcey = 0;
+            var p = d.parent;
+            var points;
+            if (d.parent) {
+              //left node of green branch
+              if (d.parent.x > d.x) {
+                points = [
+                  [0, 0],
+                  [0, -layer_height / 3],
+                  [
+                    d.parent.x - d.x + d.value[0] / 2 - d.parent.value[0] / 2,
+                    (-2 * layer_height) / 3
+                  ],
+                  [
+                    d.parent.x - d.x + d.value[0] / 2 - d.parent.value[0] / 2,
+                    -(layer_height - rect_height)
+                  ]
+                ];
+              }
+              //right node of green branch
+              else {
+                points = [
+                  [0, 0],
+                  [0, -layer_height / 3],
+                  [
+                    d.parent.x - d.x + (d.parent.value[0] - d.value[0]) / 2,
+                    (-2 * layer_height) / 3
+                  ],
+                  [
+                    d.parent.x - d.x + (d.parent.value[0] - d.value[0]) / 2,
+                    -(layer_height - rect_height)
+                  ]
+                ];
+              }
+            } else {
+              points = [[0, 0], [0, 0]]; //no parent, no path
+            }
+            return line(points);
+          })
+          .attr("transform", function(d) {
+            return "scale(" + 1 + "," + 1 + ")";
+          }) //"grows" path
+          .transition()
+          .duration(duration);
+
+        // for the red path, the height of the 2 middle points are offset
+        // this is done to avoid overlap with the green path
+        // offset is 1/6 of layer height currently
+        // height of the middle two points can be adjusted to fit preferences
+
+        nodeUpdate
+          .select(".rightlink")
+          .style("stroke-width", function(d) {
+            return d.value[1] * 1.0;
+          })
+          .style("stroke", "#f24d4d")
+          .attr("transform", function(d) {
+            return "scale(" + 1 + "," + 1 + ")";
+          })
+          .attr("d", function(d) {
+            var targety = layer_height;
+            var targetx = adjustMap[d.label];
+            var sourcey = 0;
+            var p = d.parent;
+            var points;
+            if (d.parent) {
+              //red path left node
+              if (d.parent.x > d.x) {
+                points = [
+                  [d.value[0] / 2 + d.value[1] / 2, 0],
+                  [
+                    d.value[0] / 2 + d.value[1] / 2,
+                    -((1 / 3) * layer_height - (1 / 6) * layer_height)
+                  ],
+                  [
+                    d.parent.x -
+                      d.x +
+                      d.parent.value[0] / 2 +
+                      d.parent.value[1] / 2 -
+                      (d.parent.value[1] - d.value[1]) / 2,
+                    (-2 / 3) * layer_height
+                  ],
+                  [
+                    d.parent.x -
+                      d.x +
+                      d.parent.value[0] / 2 +
+                      d.parent.value[1] / 2 -
+                      (d.parent.value[1] - d.value[1]) / 2,
+                    -(layer_height - rect_height)
+                  ]
+                ];
+              }
+              //red path right node
+              else {
+                points = [
+                  [d.value[0] / 2 + d.value[1] / 2, 0],
+                  [d.value[0] / 2 + d.value[1] / 2, -((1 / 3) * layer_height)],
+                  [
+                    d.parent.x -
+                      d.x +
+                      d.parent.value[0] / 2 +
+                      d.parent.value[1] / 2 +
+                      (d.parent.value[1] - d.value[1]) / 2,
+                    -((2 / 3) * layer_height + layer_height / 6)
+                  ],
+                  [
+                    d.parent.x -
+                      d.x +
+                      d.parent.value[0] / 2 +
+                      d.parent.value[1] / 2 +
+                      (d.parent.value[1] - d.value[1]) / 2,
+                    -(layer_height - rect_height)
+                  ]
+                ];
+              }
+            } else {
+              points = [[0, 0], [0, 0]]; //no parent, no path
+            }
+            return line(points);
+          })
+          .transition()
+          .duration(duration);
+
+        // Transition exiting nodes to the parent's new position.
+        var nodeExit = node
+          .exit()
+          .transition()
+          .duration(duration)
+          .attr("transform", function(d) {
+            return "translate(" + source.x + "," + source.y + ")";
+          });
+
+        //makes path smaller on exit
+        nodeExit
+          .select(".leftlink")
+          //.style('stroke-width', 0)
+          .duration(duration)
+          .attr("transform", function(d) {
+            return "scale(" + 0 + "," + 0 + ")";
+          });
+
+        //makes path smaller on exit
+        nodeExit
+          .select(".rightlink")
+          //.style('stroke-width', 0)
+          .duration(duration)
+          .attr("transform", function(d) {
+            return "scale(" + 0 + "," + 0 + ")";
+          });
+        nodeExit.select("text").style("fill-opacity", 1e-6);
+        // Update the links
+        var link = vis
+          .selectAll("path.link")
+          .data(tree.links(nodes), function(d) {
+            return d.target.id;
+          });
+        nodeExit.remove();
+
+        // Stash the old positions for transition.
+        nodes.forEach(function(d) {
+          d.x0 = d.x;
+          d.y0 = d.y;
+        });
+      }
+
+      // Toggle children.
+      function toggle(d) {
+        if (d.children) {
+          d._children = d.children;
+          d.children = null;
+        } else {
+          d.children = d._children;
+          d._children = null;
+        }
+      }
+
+      //scales nodes and connecting width
+      //useful for handling new data with more/less entries per node
+      //called only once
+      function scale(d) {
+        d.samples /= n_samples / max_node_width;
+        d.value[0] /= n_samples / max_node_width;
+        d.value[1] /= n_samples / max_node_width;
+      }
+    </script>
+  </body>
+</html>

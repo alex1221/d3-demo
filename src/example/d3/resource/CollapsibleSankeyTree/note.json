@@ -1,0 +1,96 @@
+{
+    "samples": 1097,
+    "value": [
+        619,
+        478
+    ],
+    "label": "",
+    "type": "split",
+    "children": [
+        {
+            "error": 0.0000,
+            "samples": 521,
+            "value": [
+                104,
+                417
+            ],
+            "label": "var < .318",
+            "type": "split",
+            "children": [
+                {
+                    "error": 0,
+                    "samples": 428,
+                    "value": [
+                        31,
+                        397
+                    ],
+                    "label": "skew < 7.4",
+                    " type": "leaf"
+                },
+                {
+                    "error": 0,
+                    "samples": 93,
+                    "value": [
+                        73,
+                        30
+                    ],
+                    "label": "skew > 7.4"
+                }
+            ]
+        },
+        {
+            "error": 0,
+            "samples": 576,
+            "value": [
+                515,
+                81
+            ],
+            "label": "var > .318",
+            "type": "split",
+            "children": [
+                {
+                    "error": 0,
+                    "samples": 176,
+                    "value": [
+                        120,
+                        76
+                    ],
+                    "label": "var < 1.74",
+                    "type": "split",
+                    "children": [
+                        {
+                            "error": 0,
+                            "samples": 41,
+                            "value": [
+                                2,
+                                59
+                            ],
+                            "label": "curt < -2.3",
+                            "type": "leaf"
+                        },
+                        {
+                            "error": 0,
+                            "samples": 135,
+                            "value": [
+                                118,
+                                17
+                            ],
+                            "label": "curt > -2.3",
+                            "type": "leaf"
+                        }
+                    ]
+                },
+                {
+                    "error": 0,
+                    "samples": 400,
+                    "value": [
+                        395,
+                        5
+                    ],
+                    "label": "var > 1.74",
+                    "type": "split"
+                }
+            ]
+        }
+    ]
+}

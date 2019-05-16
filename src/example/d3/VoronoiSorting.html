@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Voronoi Sorting</title>
+    <style>
+      body {
+        margin: 0;
+      }
+
+      path {
+        fill-opacity: 0.75;
+        stroke: black;
+      }
+    </style>
+  </head>
+  <body>
+    <script src="js/d3.v4.min.js"></script>
+    <script>
+      var width = window.innerWidth,
+        height = window.innerHeight,
+        samples = [];
+
+      var voronoi = d3.voronoi().size([width, height]);
+
+      //the size of the polygon will determine it's fill color - and later, it's placement along the x axis
+      var color = d3.scaleSequential(d3.interpolateCubehelixDefault),
+        x = d3.scaleLog().range([0, width]);
+
+      var svg = d3
+        .select("body")
+        .append("svg")
+        .attr("width", width)
+        .attr("height", height);
+
+      getData();
+
+      var paths = svg
+        .selectAll("path")
+        .data(samples)
+        .enter()
+        .append("path");
+
+      paths
+        .attr("transform", "translate(0,0)")
+        .style("fill", function(d, i) {
+          return color(samples[i].area);
+        })
+        .attr("d", function(d, i) {
+          return getPath(samples[i].sample);
+        });
+
+      function getData() {
+        //if loading data for the first time, generate an array of random coordinates
+        if (!samples.length) {
+          for (i = 0; i < 500; i++) {
+            samples[i] = [Math.random() * width, Math.random() * height];
+          }
+          //otherwise, update the x coordinate based on the polygon's size
+        } else {
+          for (i in samples) {
+            samples[i] = [x(samples[i].area), samples[i].point[1]];
+          }
+        }
+
+        //create new polygons and bind them and their calculated area to the main data array
+        var voronoiData = voronoi(samples).polygons();
+        for (i in voronoiData) {
+          samples[i] = {
+            point: samples[i],
+            sample: voronoiData[i],
+            area: d3.polygonArea(voronoiData[i])
+          };
+        }
+
+        //set the domain of the scales by finding the min and max area values
+        var minMax = d3.extent(samples, function(d) {
+          return d.area;
+        });
+        color.domain([minMax[1], minMax[0]]);
+        x.domain(minMax);
+      }
+
+      //create the paths for the polygons
+      function getPath(points) {
+        //redrawing the polygons was causing some unwanted effects when transitioning a polygon to a new shape that has more sides. this was because the new points would be drawn off screen before transitioning into place.
+
+        //my solution was to default each polygon to having more points than (hopefully) necessary, with the extra points placed on top of each other. this is potentially not performant as it creates multiple points in the same location.
+
+        var thisPath = "M" + points[0];
+        for (n = 1; n < 15; n++) {
+          thisPath += "L" + (n < points.length ? points[n] : points[0]);
+        }
+        return thisPath;
+      }
+
+      var sortShapes = function() {
+        //slide the polygons into order of size along the x-axis according to the log scale
+        paths
+          .transition()
+          .duration(2000)
+          .attr("transform", function(d, i) {
+            return (
+              "translate(" + (-samples[i].point[0] + x(samples[i].area)) + ",0)"
+            );
+          });
+
+        //re-calculate the voronoi polygons and their sizes based on the new positions
+        getData();
+
+        //transition to the new sizes and shapes
+        paths
+          .transition()
+          .delay(2000)
+          .duration(2000)
+          .attr("transform", "translate(0,0)")
+          .attr("d", function(d, i) {
+            return getPath(samples[i].sample);
+          })
+          .style("fill", function(d, i) {
+            return color(samples[i].area);
+          });
+
+        //loop the sorting process
+        d3.timeout(sortShapes, 6000);
+      };
+
+      d3.timeout(sortShapes, 2000);
+    </script>
+  </body>
+</html>

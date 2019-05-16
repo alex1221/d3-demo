@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>category10</title>
+    <style>
+      body {
+        margin: 0;
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <script src="js/d3.v4.min.js"></script>
+    <script>
+      var s = "category10";
+      var color = d3.scaleOrdinal(d3.schemeCategory10);
+      var svg = d3
+        .select("body")
+        .append("svg")
+        .attr("width", 960)
+        .attr("height", 500);
+
+      svg
+        .append("text")
+        .attr("y", 250)
+        .attr("x", 480)
+        .style("text-anchor", "middle")
+        .style("font-size", 100)
+        //.style("font-family", "Droid Sans Mono, Courier, monospace")
+        .style("font-family", "Courier, monospace")
+        .selectAll("tspan")
+        .data(s.split(""))
+        .enter()
+        .append("tspan")
+        .text(function(d) {
+          return d;
+        })
+        .style("fill", function(d, i) {
+          return color(i);
+        });
+    </script>
+  </body>
+</html>

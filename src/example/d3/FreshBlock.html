@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>fresh_block</title>
+    <style>
+      body {
+        font-family: calibri;
+      }
+      .axis {
+        font: 14px calibri;
+      }
+      .label {
+        font: 16px calibri;
+      }
+
+      .line {
+        fill: none;
+        stroke: steelblue;
+        stroke-width: 2;
+      }
+
+      .overlay {
+        fill: none;
+        pointer-events: all;
+      }
+
+      /* Style the dots by assigning a fill and stroke */
+      .dot {
+        fill: steelblue;
+        stroke: #fff;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="chart"></div>
+    <script src="js/d3.v5.min.js"></script>
+
+    <script>
+      //code below based on https://bl.ocks.org/caravinden/raw/eb0e5a2b38c8815919290fa838c6b63b/
+
+      // Line help
+      // https://bl.ocks.org/gordlea/27370d1eea8464b04538e6d8ced39e89
+      // https://bl.ocks.org/d3noob/402dd382a51a4f6eea487f9a35566de0
+
+      // set the dimensions and margins of the graph
+      var margin = { top: 30, right: 20, bottom: 45, left: 80 },
+        width = 800 - margin.left - margin.right,
+        height = 450 - margin.top - margin.bottom;
+
+      // set the ranges
+      var x = d3.scaleTime().range([0, width]);
+      var y = d3.scaleLinear().range([height, 0]);
+
+      // append the svg object to the body of the page
+      // append a 'group' element to 'svg'
+      // moves the 'group' element to the top left margin
+      var svg = d3
+        .select("#chart")
+        .append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+      // define the line
+      var valueline = d3
+        .line()
+        .x(function(d) {
+          return x(d.key);
+        })
+        .y(function(d) {
+          return y(d.value);
+        });
+      d3.csv(
+        "resource/FreshBlock/hw4-established.csv"
+      ).then(function(data) {
+        // nest, rollup help from
+        // http://learnjsdata.com/group_data.html
+        // and http://bl.ocks.org/phoebebright/raw/3176159/
+
+        // aggregate by decade (10 years)
+        var count = d3
+          .nest()
+          .key(d => parseInt(d.established / 10))
+          .sortKeys(d3.ascending)
+          .rollup(v => v.length)
+          .entries(data);
+        //    console.log("count");
+        //    console.log(JSON.stringify(count));
+
+        //    https://stackoverflow.com/questions/48698670/formatting-year-in-d3-v4-to-remove-commas
+        //https://stackoverflow.com/questions/16549868/d3-remove-comma-delimiters-for-thousands
+
+        var parseTime = d3.timeParse("%Y");
+        count.forEach(function(d) {
+          d.key = parseTime(d.key * 10); // put back as year
+          d.value = +d.value;
+        });
+
+        // Scale the range of the data in the domains
+        x.domain(d3.extent(count, d => d.key));
+        y.domain([0, d3.max(count, d => d.value)]);
+
+        // Add the valueline path.
+        svg
+          .append("path")
+          .data([count])
+          .attr("class", "line")
+          .attr("d", valueline);
+
+        // Add dots
+        svg
+          .selectAll(".dot")
+          .data(count)
+          .enter()
+          .append("circle") // Uses the enter().append() method
+          .attr("class", "dot") // Assign a class for styling
+          .attr("cx", function(d) {
+            return x(d.key);
+          })
+          .attr("cy", function(d) {
+            return y(d.value);
+          })
+          .attr("r", 4);
+
+        // add the x Axis
+        svg
+          .append("g")
+          .attr("class", "axis")
+          .attr("transform", "translate(0," + height + ")")
+          .call(d3.axisBottom(x));
+
+        svg
+          .append("text")
+          // set label position to x = width/2 and y=height+margin.bottom
+          .attr(
+            "transform",
+            "translate(" + width / 2 + "," + (height + margin.bottom - 5) + ")"
+          )
+          .style("text-anchor", "middle") // center text
+          .text("Year Established");
+
+        // add the y Axis
+        svg
+          .append("g")
+          .attr("class", "axis")
+          .call(d3.axisLeft(y));
+
+        svg
+          .append("text")
+          .attr(
+            "transform",
+            "translate(" + -1 * margin.left + "," + (-1 * margin.top) / 2 + ")"
+          )
+          .style("text-anchor", "start")
+          .text("Universities established per decade");
+      });
+    </script>
+  </body>
+</html>

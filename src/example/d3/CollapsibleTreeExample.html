@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Collapsible Tree Example</title>
+    <style>
+      .node circle {
+        fill: red;
+        stroke: red;
+        stroke-width: 0.5px;
+      }
+      .node text {
+        font: 5px sans-serif;
+      }
+      .node text1 {
+        font: 5px sans-serif;
+      }
+      .link {
+        fill: none;
+        stroke: #90ee90;
+        stroke-width: 1px;
+      }
+
+      .slidecontainer {
+        width: 100%; /* Width of the outside container */
+      }
+      /* The slider itself */
+      .slider {
+        -webkit-appearance: none; /* Override default CSS styles */
+        appearance: none;
+        width: 100%; /* Full-width */
+        height: 25px; /* Specified height */
+        background: #d3d3d3; /* Grey background */
+        outline: none; /* Remove outline */
+        opacity: 0.7; /* Set transparency (for mouse-over effects on hover) */
+        -webkit-transition: 0.2s; /* 0.2 seconds transition on hover */
+        transition: opacity 0.2s;
+      }
+      /* Mouse-over effects */
+      .slider:hover {
+        opacity: 1; /* Fully shown on mouse-over */
+      }
+      /* The slider handle (use -webkit- (Chrome, Opera, Safari, Edge) and -moz- (Firefox) to override default look) */
+      .slider::-webkit-slider-thumb {
+        -webkit-appearance: none; /* Override default look */
+        appearance: none;
+        width: 25px; /* Set a specific slider handle width */
+        height: 25px; /* Slider handle height */
+        background: #4cad4d; /* Green background */
+        cursor: pointer; /* Cursor on hover */
+      }
+      .slider::-moz-range-thumb {
+        width: 25px; /* Set a specific slider handle width */
+        height: 25px; /* Slider handle height */
+        background: #4caf50; /* Green background */
+        cursor: pointer; /* Cursor on hover */
+      }
+    </style>
+  </head>
+
+  <body>
+    <label for="title">Function Value</label>
+    <br />
+    <textarea id="IIII" rows="2" cols="10" name="Value" font-size="25px" readonly></textarea>
+
+    <div class="slidecontainer">
+      <input type="range" min="1" max="1000" value="1" class="slider" id="myRange"/>
+    </div>
+
+    <!-- load the d3.js library -->
+    <script src="js/d3.min.js"></script>
+
+    <script>
+      d3.json("resource/CollapsibleTreeExample/data.json", function(
+        error,
+        data
+      ) {
+        var treeData = [];
+        treeData.push(data);
+
+        // ************** Generate the tree diagram	 *****************
+
+        var margin = { top: 20, right: 20, bottom: 20, left: 20 },
+          width = window.outerWidth - margin.right - margin.left,
+          height = window.outerHeight - margin.top - margin.bottom - 135;
+        var i = 0;
+        var tree = d3.layout
+          .tree()
+          .size([height, width])
+          // .nodeSize([10, 10])
+          .separation(function(a, b) {
+            return a.parent == b.parent ? 2 : 1;
+          });
+        //.sort(d3.ascending);
+        var diagonal = d3.svg.diagonal().projection(function(d) {
+          return [d.y, d.x];
+        });
+        var svg = d3
+          .select("body")
+          .append("svg")
+          .attr("width", width + margin.right + margin.left)
+          .attr("height", height + margin.top + margin.bottom)
+          .append("g")
+          .attr(
+            "transform",
+            "translate(" + margin.left + "," + margin.top + ")"
+          );
+        root = treeData[0];
+        var nodes1 = tree.nodes(root).reverse();
+        update(root);
+        //root.children.forEach(collapse);
+        var slider = document.getElementById("myRange");
+        slider.oninput = function() {
+          function deepClone(obj) {
+            var visitedNodes = [];
+            var clonedCopy = [];
+            function clone(item) {
+              if (typeof item === "object" && !Array.isArray(item)) {
+                if (visitedNodes.indexOf(item) === -1) {
+                  visitedNodes.push(item);
+                  var cloneObject = {};
+                  clonedCopy.push(cloneObject);
+                  for (var i in item) {
+                    if (item.hasOwnProperty(i)) {
+                      cloneObject[i] = clone(item[i]);
+                    }
+                  }
+                  return cloneObject;
+                } else return clonedCopy[visitedNodes.indexOf(item)];
+              } else if (typeof item === "object" && Array.isArray(item)) {
+                if (visitedNodes.indexOf(item) === -1) {
+                  var cloneArray = [];
+                  visitedNodes.push(item);
+                  clonedCopy.push(cloneArray);
+                  for (var j = 0; j < item.length; j++)
+                    cloneArray.push(clone(item[j]));
+                  return cloneArray;
+                } else return clonedCopy[visitedNodes.indexOf(item)];
+              }
+
+              return item;
+            }
+            return clone(obj);
+          }
+
+          par = slider.value;
+          console.log("PAR 1", par);
+          treeData1 = deepClone(treeData);
+          d3.select("svg").remove();
+          var root1 = treeData1[0];
+          var nodes1 = tree.nodes(root1).reverse();
+          nodes1.forEach(function(d) {
+            console.log("PAR 2", par);
+            for (var i in d.children) {
+              //if(d==root)
+              //console.log('ROOOOT', root.name)
+              if (d.children && d.children[i].name - d.name < par) {
+                //if(d.children[i].name%2==0)
+                //console.log('Meow ', Math.random())
+                //console.log(d.children[i].name)
+                collapse(d.children[i]);
+              }
+            }
+          });
+
+          update(root1);
+        };
+        /*function collapse(d) {
+    //console.log('collapsing 1')
+  if(d.children) {
+    //console.log('collapsing 2')
+    d._children = d.children
+    d._children.forEach(collapse)
+    d.children = null
+  }
+}*/
+
+        function collapse(d) {
+          console.log("In collapses");
+          if (d.children) {
+            d._children = d.children;
+            //d._children.forEach(collapse)
+            d.children = null;
+            if (d.parent.children)
+              d.parent.children = d.parent.children.concat(d._children);
+          }
+        }
+
+        //update(root);
+        function update(source) {
+          console.log("In UPDATE");
+          // Compute the new tree layout.
+          var nodes = tree.nodes(source), //.reverse(),
+            //var nodes1 = tree.nodes(root).reverse();
+            links = tree.links(nodes);
+          var min = 5;
+          var max = window.outerWidth * 2;
+          var distance = d3.scale
+            .linear()
+            .domain([5, 5000])
+            .range([min, max]); //window.screen.width*2]);
+          // Normalize for fixed-depth.
+          nodes.forEach(function(d) {
+            //console.log("MEOW "+d.name)
+            /*
+    if(d.set == true)
+      return;
+    if(parseInt(d.parentDegree) == 0)
+    {
+      d.y = d.depth*50;
+      d.set = true;
+    }
+    else if(parseInt(d.parentDegree)==1)
+      {
+        d.y = d.parent.y+80;
+        d.set = true;
+      }
+    else
+      {
+        if(d.parent.children)
+        {
+          if(d == d.parent.children[0])
+            {
+              var other = d.parent.children[1];
+            }
+          else
+            {
+              var other = d.parent.children[0];
+            }
+          if(parseInt(d.name) > parseInt(other.name))
+          {
+              d.y = d.parent.y+180;
+            if(other.set == false)
+              other.y = other.parent.y+90;
+            //console.log("d name "+d.name+" d value "+d.y+" other value "+other.y);
+          }
+          else
+          {
+              d.y = d.parent.y+90;
+            if(other.set ==false)
+              other.y = other.parent.y+180;
+            console.log("d name "+d.name+" d value "+d.y+" other value "+other.y);
+          }
+          d.set= true;
+          other.set = true;
+        }
+      }*/
+            d.y = distance(parseInt(d.name)) + parseInt(Math.random());
+          });
+
+          //var par = 1000;
+
+          /*  nodes.reverse().forEach(function(d) 
+  { 
+    for(var i in d.children)
+      {
+        if(d.children && d.children[i].name - d.name < par)
+          {
+            collapse(d);
+            update(root);
+            continue;
+          }
+      }
+  }
+               );*/
+
+          // Declare the nodes…
+          d3.select("svg").remove();
+          svg = d3
+            .select("body")
+            .append("svg")
+            .attr("width", width + margin.right + margin.left)
+            .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+            .attr(
+              "transform",
+              "translate(" + margin.left + "," + margin.top + ")"
+            );
+
+          var node = svg.selectAll("g.node").data(nodes, function(d) {
+            return d.id || (d.id = ++i);
+          });
+
+          // Enter the nodes.
+          var nodeEnter = node
+            .enter()
+            .append("g")
+            .attr("class", "node")
+            .attr("transform", function(d) {
+              return "translate(" + d.y + "," + d.x + ")";
+            })
+            .on("mouseover", mo);
+          nodeEnter
+            .append("circle")
+            .attr("r", 1)
+            .style("fill", "#ccc");
+          /*nodeEnter.append("text")
+	  .attr("x", function(d) { 
+		  return d.children || d._children ? -13 : 13; })
+	  .attr("dy", ".35em")
+	  .attr("text-anchor", function(d) { 
+		  return d.children || d._children ? "end" : "start"; })
+	  .text(function(d) { return d.name; })
+	  .style("fill-opacity", 1);*/
+
+          var line = d3.svg
+            .line()
+            .x(function(d) {
+              return d.y;
+            })
+            .y(function(d) {
+              return d.x;
+            });
+          // Declare the links…
+          var link = svg.selectAll("path.link").data(links, function(d) {
+            return d.target.id;
+          });
+          // Enter the links.
+          link
+            .enter()
+            .insert("svg:path", "g")
+            .attr("class", "link")
+            .attr("d", diagonal);
+          //  .attr("d", function(d){
+          //return line([d.source, d.target]);
+          //})
+        }
+        function click(d) {
+          if (d.children) {
+            d._children = d.children;
+            d.children = null;
+          } else {
+            d.children = d._children;
+            d._children = null;
+          }
+          update(d);
+        }
+
+        function mo(d) {
+          console.log("meow");
+          //var cur = svg.select(d);
+          //console.log(cur.name);
+          //document.write(d.name);
+          //cwindow.alert(d.name);
+          document.getElementById("IIII").innerHTML = d.name;
+        }
+      });
+    </script>
+  </body>
+</html>

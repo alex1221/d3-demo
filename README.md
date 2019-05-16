@@ -1,2 +1,10 @@
-# d3-demo
-d3的一些例子
+手机一些d3的效果
+
+# gulpProject
+gulp工程打包
+
+npm install
+
+gulp dev 
+
+gulp watch

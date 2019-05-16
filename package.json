@@ -1,0 +1,27 @@
+{
+  "name": "myproject",
+  "version": "1.0.0",
+  "description": "",
+  "main": "gulpfile.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "alexLuo",
+  "license": "ISC",
+  "devDependencies": {
+    "gulp": "^4.0.0",
+    "gulp-clean": "^0.4.0",
+    "gulp-connect": "^5.7.0",
+    "gulp-file-include": "^2.0.1",
+    "gulp-plumber": "^1.2.1",
+    "gulp-sass": "^4.0.2",
+    "gulp-sequence": "^1.0.0",
+    "gulp-tmod": "^2.0.3",
+    "gulp-zip": "^4.2.0",
+    "gulp4-run-sequence": "^0.3.1",
+    "http-proxy-middleware": "^0.19.1",
+    "node-sass": "^4.11.0",
+    "require-dir": "^1.2.0",
+    "run-sequence": "^2.2.1"
+  }
+}

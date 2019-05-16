@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>dance</title>
+    <style>
+      body {
+        margin: 0;
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+      }
+      svg {
+        width: 100%;
+        height: 100%;
+      }
+      text {
+        font-size: 150px;
+        font-family: "Courier";
+      }
+    </style>
+  </head>
+  <body>
+    <script src="js/d3.min.js"></script>
+    <script>
+      var dance = [
+        "d<",
+        "d=",
+        "d<",
+        "dc",
+        "d<",
+        "d=",
+        "q<",
+        "d<",
+        "q<",
+        "q=",
+        "q<",
+        "qc",
+        "q<",
+        "q="
+      ];
+
+      var svg = d3.select("body").append("svg");
+      var g = svg.append("g").attr({
+        transform: "translate(407,155)rotate(90)"
+      });
+      var dancer = g.append("text").text("d<");
+
+      var frameTime = 400;
+      function dancedance() {
+        dance.forEach(function(d, i) {
+          setTimeout(function() {
+            dancer.text(d);
+            if (i == dance.length - 1) dancedance();
+          }, (i + 1) * frameTime);
+        });
+      }
+      dancedance();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>patient flow</title>
+  </head>
+  <body>
+    <script src="js/d3.v4.min.js"></script>
+    <script type="text/javascript">
+      // svg dimensions
+      var w = 1200;
+      var h = 800;
+
+      // node variables
+      var node_radius = 5;
+      var num_nodes = 484;
+
+      // strength of force
+      var forceStrength = 0.03;
+
+      // foci of the central forces
+      var foci = {
+        launchpad: { x: 250, y: 350, color: "gray" },
+        homebase: { x: 950, y: 350, color: "gray" },
+        lab: { x: 530, y: 600, color: "pink" },
+        radiationoncology: { x: 390, y: 500, color: "aqua" },
+        radiology: { x: 670, y: 600, color: "purple" },
+        clinic3: { x: 810, y: 500, color: "fuchsia" },
+        clinic4: { x: 390, y: 200, color: "fuchsia" },
+        waitingpool: { x: 600, y: 350, color: "red" },
+        infusion: { x: 530, y: 100, color: "green" },
+        apheresiscellulartherapy: { x: 670, y: 100, color: "blue" },
+        clinic6: { x: 810, y: 200, color: "fuchsia" }
+      };
+
+      // create nodes
+      var nodes = d3.range(0, num_nodes).map(function(o, i) {
+        return {
+          id: "node" + i,
+          x: foci.launchpad.x + Math.random(),
+          y: foci.launchpad.y + Math.random(),
+          place: "launchpad"
+        };
+      });
+
+      // amount of "charge" for each node
+      var charge = function(d) {
+        return -Math.pow(d.radius, 2) * forceStrength;
+      };
+
+      // force layout
+      var simulation = d3
+        .forceSimulation(nodes)
+        .velocityDecay(0.2)
+        .force(
+          "x",
+          d3
+            .forceX()
+            .strength(forceStrength)
+            .x(foci.launchpad.x)
+        )
+        .force(
+          "y",
+          d3
+            .forceY()
+            .strength(forceStrength)
+            .y(foci.launchpad.y)
+        )
+        .force("collide", d3.forceCollide().radius(node_radius))
+        .on("tick", tick);
+
+      // draw svg element
+      var svg = d3
+        .select("body")
+        .append("svg")
+        .attr("width", w)
+        .attr("height", h);
+
+      // draw date text
+      svg
+        .append("text")
+        .attr("x", foci.launchpad.x)
+        .attr("y", foci.radiology.y)
+        .style("font-family", "futura")
+        .style("font-size", 18)
+        .style("text-anchor", "middle")
+        .text("Wednesday, October 4, 2017");
+
+      // draw time text
+      svg
+        .append("text")
+        .attr("x", foci.launchpad.x - 40)
+        .attr("y", foci.radiology.y + 25)
+        .style("font-family", "futura")
+        .style("font-size", 18)
+        .style("text-anchor", "middle")
+        .text("Time of Day: ");
+
+      // draw circle for each node
+      var circle = svg
+        .selectAll("circle")
+        .data(nodes)
+        .enter()
+        .append("circle")
+        .attr("id", function(d) {
+          return d.patID;
+        })
+        .attr("class", "node")
+        .attr("fill", function(d) {
+          return foci[d.place].color;
+        })
+        .attr("r", 5);
+
+      // for smoother initial transition to settling spots
+      circle
+        .transition()
+        .duration(900)
+        .delay(function(d, i) {
+          return i * 5;
+        });
+
+      // function to draw end location circles
+      var drawEndPtCirc = function(location, rad, opac, loc_text) {
+        svg
+          .append("circle")
+          .attr("cx", foci[location].x)
+          .attr("cy", foci[location].y)
+          .attr("r", rad)
+          .style("stroke", "black")
+          .style("stroke-width", 3)
+          .style("fill", "gray")
+          .style("opacity", 0.5);
+
+        svg
+          .append("text")
+          .attr("x", foci[location].x)
+          .attr("y", foci[location].y)
+          .style("font-family", "sans-serif")
+          .style("text-anchor", "middle")
+          .text(loc_text);
+      };
+
+      // function to draw clinic location circles
+      var drawLocCirc = function(location, rad, loc_text) {
+        svg
+          .append("circle")
+          .attr("cx", foci[location].x)
+          .attr("cy", foci[location].y)
+          .attr("r", rad)
+          .style("stroke", "black")
+          .style("stroke-width", 2)
+          .style("fill", "none");
+
+        svg
+          .append("text")
+          .attr("x", foci[location].x)
+          .attr("y", foci[location].y + 55)
+          .style("font-family", "sans-serif")
+          .style("font-size", 12)
+          .style("text-anchor", "middle")
+          .text(loc_text);
+      };
+
+      drawEndPtCirc("launchpad", 100, 0.5, "Future Patients");
+
+      drawEndPtCirc("homebase", 100, 0.5, "Past Patients");
+
+      drawLocCirc("radiationoncology", 40, "RadOnc");
+
+      drawLocCirc("lab", 40, "Lab");
+
+      drawLocCirc("radiology", 40, "Radiology");
+
+      drawLocCirc("clinic3", 40, "3rd Floor Clinic");
+
+      drawLocCirc("clinic4", 40, "4th Floor Clinic");
+
+      drawLocCirc("waitingpool", 40, "Between Appointments");
+
+      drawLocCirc("infusion", 40, "Infusion");
+
+      drawLocCirc("apheresiscellulartherapy", 40, "Apheresis");
+
+      drawLocCirc("clinic6", 40, "6th Floor Clinic");
+
+      d3.csv("resource/PatientFlow/patient_flow_data.csv", function(data) {
+        // run function periodically to make things move
+        var timeout;
+
+        var hour = 5;
+        var minute = 57;
+
+        var i = 0;
+        var timer = function() {
+          // random place for a node to go
+          var choices = d3.keys(foci);
+          var foci_index = Math.floor(Math.random() * choices.length);
+          var choice = d3.keys(foci)[foci_index];
+
+          function checkTime(i) {
+            if (i < 10) {
+              i = "0" + i;
+            } // add zero in front of numbers < 10
+            return i;
+          }
+
+          // check if we're at the end of the line
+          if (i == data.length) {
+            i = 0;
+            minute = 57;
+            hour = 5;
+          }
+
+          minute = +minute + 1;
+
+          if (minute % 60 == 0) {
+            minute = 0;
+            hour = +hour + 1;
+          }
+
+          minute = checkTime(+minute);
+          hour = checkTime(+hour);
+
+          console.log(i);
+          // update nodes
+          for (var j = 0; j < num_nodes; j++) {
+            console.log(j);
+            console.log(data[i]["node" + j]);
+            nodes[j].cx = foci[data[i]["node" + j]].x;
+            nodes[j].cy = foci[data[i]["node" + j]].y;
+            nodes[j].place = data[i]["node" + j];
+          }
+
+          simulation.alpha(0.01).restart();
+
+          svg
+            .append("text")
+            .attr("x", foci.launchpad.x + 40)
+            .attr("y", foci.radiology.y + 25)
+            .style("font-family", "futura")
+            .style("font-size", 18)
+            .style("text-anchor", "middle")
+            .transition()
+            .duration(400)
+            .text(function() {
+              return hour + ":" + minute;
+            })
+            .remove();
+
+          i += 1;
+
+          // run it again in a few seconds
+          timeout = setTimeout(timer, 400);
+        };
+
+        timeout = setTimeout(timer, 400);
+      });
+
+      function tick(e) {
+        circle
+          .each(gravity(0.05))
+          .style("fill", function(d) {
+            return foci[d.place].color;
+          })
+          .attr("cx", function(d) {
+            return d.x;
+          })
+          .attr("cy", function(d) {
+            return d.y;
+          });
+      }
+
+      function gravity(alpha) {
+        return function(d) {
+          d.y += (foci[d.place].y - d.y) * alpha;
+          d.x += (foci[d.place].x - d.x) * alpha;
+        };
+      }
+    </script>
+  </body>
+</html>

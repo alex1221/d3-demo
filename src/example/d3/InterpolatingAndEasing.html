@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>interpolating and easing</title>
+    <style>
+      body {
+        margin: 0;
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <script src="js/d3.v4.min.js"></script>
+    <script>
+      // Feel free to change or delete any of the code you see in this editor!
+      var width = 960;
+
+      var interpolateColor = d3.interpolateLab("steelblue", "brown");
+      var interpolateWidth = d3.interpolateNumber(0, 960);
+
+      var ease = d3.easeCubic;
+
+      var svg = d3
+        .select("body")
+        .append("svg")
+        .attr("width", width)
+        .attr("height", 500);
+
+      var rect = svg
+        .append("rect")
+        .attr("x", 0)
+        .attr("y", 100)
+        .attr("height", 300)
+        .attr("width", 100)
+        .style("fill", "steelblue");
+
+      svg.on("mousemove", function() {
+        var mouse = d3.mouse(this);
+        console.log("mouse", mouse);
+        var t = mouse[0] / width;
+        var color = interpolateColor(t);
+        rect.style("fill", color).attr("width", interpolateWidth(ease(t)));
+      });
+    </script>
+  </body>
+</html>

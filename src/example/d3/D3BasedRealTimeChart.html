@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <link rel=stylesheet type=text/css href="resource/css/bootstrap.min.css"
+    media="all">
+    <title>D3 Based Real Time Chart</title>
+    <style>
+      .axis text {
+        font: 10px sans-serif;
+      }
+      .chartTitle {
+        font-size: 12px;
+        font-weight: bold;
+        text-anchor: middle;
+      }
+      .axis .title {
+        font-weight: bold;
+        text-anchor: middle;
+      }
+      .axis path,
+      .axis line {
+        fill: none;
+        stroke: #000;
+        shape-rendering: crispEdges;
+      }
+      .x.axis path {
+        fill: none;
+        stroke: #000;
+        shape-rendering: crispEdges;
+      }
+      .nav .area {
+        fill: lightgrey;
+        stroke-width: 0px;
+      }
+      .nav .line {
+        fill: none;
+        stroke: darkgrey;
+        stroke-width: 1px;
+      }
+      .viewport {
+        stroke: grey;
+        fill: black;
+        fill-opacity: 0.3;
+      }
+      .viewport .extent {
+        fill: green;
+      }
+      .well {
+        padding-top: 0px;
+        padding-bottom: 0px;
+      }
+    </style>
+  </head>
+  <body>
+    <div style="max-width: 600px; max-height: 400px; padding: 10px">
+      <div class="well">
+        <h4>D3 Based Real Time Chart</h4>
+      </div>
+      <div id="viewDiv"></div>
+    </div>
+    <script src="js/d3.min.js"></script>
+    <script src="js/D3BasedRealTimeChart/realTimeChart.js"></script>
+    <script>
+      "use strict";
+
+      // mean and deviation for time interval
+      var meanMs = 1000, // milliseconds
+        dev = 150;
+
+      // define time scale
+      var timeScale = d3.scale
+        .linear()
+        .domain([300, 1700])
+        .range([300, 1700])
+        .clamp(true);
+
+      // define value scale
+      var valueScale = d3.scale
+        .linear()
+        .domain([0, 1])
+        .range([30, 95]);
+
+      // generate initial data
+      var normal = d3.random.normal(1000, 150);
+      var currMs = new Date().getTime() - 300000 - 4000;
+      var data = d3.range(300).map(function(d, i, arr) {
+        var value = valueScale(Math.random()); // random data
+        //var value = Math.round((d % 60) / 60 * 95); // ramp data
+        var interval = Math.round(timeScale(normal()));
+        currMs += interval;
+        var time = new Date(currMs);
+        var obj = { interval: interval, value: value, time: time, ts: currMs };
+        return obj;
+      });
+
+      // create the real time chart
+      var chart = realTimeChart()
+        .title("Chart Title")
+        .yTitle("Y Scale")
+        .xTitle("X Scale")
+        .border(true)
+        .width(600)
+        .height(290)
+        .barWidth(1)
+        .initialData(data);
+
+      console.log("Version: ", chart.version);
+      console.dir("Dir++");
+      console.trace();
+      console.warn("warn");
+
+      // invoke the chart
+      var chartDiv = d3
+        .select("#viewDiv")
+        .append("div")
+        .attr("id", "chartDiv")
+        .call(chart);
+
+      // alternative invocation
+      //chart(chartDiv);
+
+      // drive data into the chart roughly every second
+      // in a normal use case, real time data would arrive through the network or some other mechanism
+      var d = 0;
+      function dataGenerator() {
+        var timeout = Math.round(timeScale(normal()));
+
+        setTimeout(function() {
+          // create new data item
+          var now = new Date();
+          var obj = {
+            value: valueScale(Math.random()), // random data
+            //value: Math.round((d++ % 60) / 60 * 95), // ramp data
+            time: now,
+            color: "red",
+            ts: now.getTime(),
+            interval: timeout
+          };
+
+          // send the datum to the chart
+          chart.datum(obj);
+
+          // do forever
+          dataGenerator();
+        }, timeout);
+      }
+
+      // start the data generator
+      dataGenerator();
+    </script>
+  </body>
+</html>

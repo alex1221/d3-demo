@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Sequence explorer - visitor flow (2)</title>
+    <link rel="stylesheet" type="text/css" href="resource/SequenceExplorerVisitorFlow/sankeySeqExplorer.v20.css">
+    <style>
+      rect.ny_ {
+        fill: none;
+        stroke: none;
+      }
+      rect.nx2.nyA {
+        fill: darkorange;
+      }
+      path.lty_ {
+        stroke: none;
+      }
+    </style>
+  </head>
+  <body>
+    <script src="js/d3.v4.min.js"></script>
+    <script src="js/SequenceExplorerVisitorFlow/sequence-explorer.v20.js"></script>
+    <script>
+      var myChart = sequenceExplorer
+        .chart("resource/SequenceExplorerVisitorFlow/sequence1.json") // load data from a json file
+        .nodePadding(50) // scaling the nodes/ paths
+        .eventOrder(["C", "B", "A", " "]) // changing the order of the events on the y
+        .correspondingEvents(["C", "B", "A"]) //specifies a subset of events which form a unit. An array with a subset of events reduces the percentages shown for a point in time
+        .eventName("visitor group") // changing the name of the y axis for the tooltip
+        .sequenceName("touchpoint") // changing the name of the x axis for the tooltip
+        .percentages(["%sameEvent"]) // adding % of same events to the tooltip
+        .particleMax(0.1) // determining the maximum number of particles (persons)
+        .particleShape("person"); // changes the particle icon
+
+      d3.select("body")
+        .append("div")
+        .attr("class", "chart")
+        .call(myChart);
+    </script>
+  </body>
+</html>

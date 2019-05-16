@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>positive definite</title>
+    <style>
+      body {
+        margin: 0;
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+      }
+      svg {
+        position: absolute;
+        left: 440px;
+        width: 500px;
+        height: 200px;
+      }
+      #mathbox1 {
+        position: absolute;
+        left: 20px;
+        top: 20px;
+        width: 400px;
+        height: 400px;
+      }
+      .number {
+        cursor: col-resize;
+      }
+    </style>
+  </head>
+  <body>
+    <svg>
+      <text x="140" y="55" id="eqn"></text>
+      <text x="140" y="80" id="result">
+        Positive Definite?
+        <tspan id="pd"></tspan>
+      </text>
+    </svg>
+    <div id="mathbox1"></div>
+    <script src="js/d3.min.js"></script>
+    <script src="js/3DPositiveDefinite/mathbox-bundle.min.js"></script>
+    <script src="js/3DPositiveDefinite/matrix.js"></script>
+    <script type="application/glsl" id="vertex-xyz">
+      // Enable STPQ mapping
+      #define POSITION_STPQ
+      void getPosition(inout vec4 xyzw, inout vec4 stpq) {
+        // Store XYZ per vertex in STPQ
+        stpq = xyzw;
+      }
+    </script>
+    <script type="application/glsl" id="fragment-shader">
+      // Enable STPQ mapping
+        #define POSITION_STPQ
+      vec4 getColor(vec4 rgba, inout vec4 stpq) {
+         float z = stpq.z/3.0;
+         if(z < 0.0) {
+          return vec4(0.4, 0, 0, 0.9);
+         }
+         return vec4(0.0, 0.4*z - 0.6, (0.4/z + 0.4), 0.9);
+        }
+    </script>
+
+    <script>
+      var svg = d3.select("svg");
+
+      var A = [[1, 0], [0, 1]];
+      var matrix = new d3.svg.matrix()
+        .data(A)
+        .mapping([["a", "b"], ["b", "c"]])
+        .cellWidth(40)
+        .cellHeight(40)
+        .margin([10, 10]);
+
+      var green = "#6ffe5c";
+      var orange = "#fe732d";
+
+      var matrixg = svg.append("g").attr("transform", "translate(20, 30)");
+
+      matrix.update(matrixg); // render the matrix
+
+      matrix.on("change", function() {
+        updateAnnotations();
+      });
+      function updateAnnotations() {
+        var a = A[0][0];
+        var b = A[0][1];
+        var c = A[1][1];
+        var isPD = a * c > b * b;
+        d3.select("#pd").text(isPD ? "yes" : "no");
+        matrixg.selectAll("path.bracket").style({
+          stroke: isPD ? "green" : orange
+        });
+
+        d3.select("#eqn").text(
+          a + " * x^2 + 2*" + b + "* x*y + " + c + " * y^2"
+        );
+      }
+
+      updateAnnotations();
+
+      // Load mathbox with controls
+      var mathbox = mathBox({
+        element: d3.select("#mathbox1").node(),
+        plugins: ["core", "cursor", "controls"],
+        controls: {
+          klass: THREE.OrbitControls
+        }
+      });
+      if (mathbox.fallback) throw "WebGL error";
+      // mathbox.resize({viewWidth:100, viewHeight:100})
+
+      // Set renderer background
+      var three = mathbox.three;
+      three.renderer.setClearColor(new THREE.Color(0xffffff), 1.0);
+
+      // Set mathbox units and place camera
+      mathbox.set({ scale: 720, focus: 3 });
+      var camera = mathbox.camera({ proxy: true, position: [0, -1.0, 1.1] });
+
+      // Create cartesian view
+      var view = mathbox.cartesian({
+        range: [[-10, 10], [-10, 10], [-10, 15]],
+        scale: [1, 1, 1]
+      });
+
+      // 2D axes / grid
+      var axesWidth = 0.5;
+      view.axis({ axis: 1, width: axesWidth });
+      view.axis({ axis: 2, width: axesWidth });
+      view.axis({ axis: 3, width: axesWidth });
+      view.grid({ width: axesWidth, divideX: 20, divideY: 20, opacity: 1 });
+
+      var r = 3;
+
+      var ai = document.getElementById("a");
+      var bi = document.getElementById("b");
+      var ci = document.getElementById("c");
+
+      var area = view.area({
+        id: "main",
+        width: 20,
+        height: 20,
+        axes: [0, 2],
+        rangeX: [-r, r],
+        rangeY: [-r, r],
+        expr: function(emit, x, y, i, j, time, delta) {
+          var a = A[0][0];
+          var b = A[0][1];
+          var c = A[1][1];
+          var z = (a * x * x + 2 * b * x * y + c * y * y) * 0.2;
+
+          emit(x, y, z);
+        },
+        channels: 3
+      });
+
+      area
+        .shader({
+          code: "#vertex-xyz"
+        })
+        .vertex({
+          // Work in data XYZ instead of view XYZ
+          pass: "data"
+        })
+        .shader({
+          code: "#fragment-shader"
+        })
+        .fragment({ gamma: true })
+        // Fragment shaded shapes
+        .surface({
+          fill: true,
+          lineX: false,
+          lineY: false,
+          width: 1,
+          zBias: 1
+          /*
+          shaded: true,
+          lineX: true,
+          lineY: true,
+          //color: "#51e4ff",
+          width: 0.5,
+          opacity: 1
+          */
+        });
+
+      area.surface({
+        fill: false,
+        lineX: true,
+        lineY: true,
+        width: 1.5,
+        zBias: 1,
+
+        color: "#c6cfd1",
+        width: 0.5,
+        opacity: 1
+      });
+
+      view
+        .interval({
+          length: 32,
+          channels: 2,
+          expr: function(emit, x, i, t) {
+            var a = A[0][0];
+            var b = A[0][1];
+            var c = A[1][1];
+            emit(x, -x); //TODO line up with trough
+          }
+        })
+        .line({
+          width: 1,
+          color: orange
+        });
+
+      view
+        .interval({
+          length: 32,
+          channels: 3,
+          expr: function(emit, x, i, t) {
+            var a = A[0][0];
+            var b = A[0][1];
+            var c = A[1][1];
+            var y = -x;
+            var z = (a * x * x + 2 * b * x * y + c * y * y) * 0.2;
+            emit(x, y, z); //TODO line up with trough
+          }
+        })
+        .line({
+          width: 1,
+          color: green
+        });
+
+      var view = mathbox.select("");
+      var surface = mathbox.select("surface");
+    </script>
+  </body>
+</html>

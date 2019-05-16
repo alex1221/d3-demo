@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>clean block</title>
+    <style>
+      .cells {
+        fill: #aaa;
+      }
+
+      .label {
+        text-anchor: start;
+        font: 24px sans-serif;
+      }
+    </style>
+  </head>
+  <body>
+    <button onclick="remove()">clear</button>
+    <svg width="960" height="400"></svg>
+    <script src="js/d3.v4.min.js"></script>
+    <script>
+      var formatNumber = d3.format(",d");
+
+      var svg = d3.select("svg");
+
+      function remove() {
+        var cellUpdate = cell.selectAll("rect");
+        const length = cell.selectAll("rect").data().length;
+
+        var cellExit = cellUpdate
+          .transition()
+          .delay(function(d, i) {
+            return (length - i) * 7;
+          })
+          .duration(updateDuration)
+          .attr("width", 0)
+          .remove();
+      }
+
+      var width = +svg.attr("width"),
+        height = +svg.attr("height");
+
+      var groupSpacing = 3,
+        cellSpacing = 1,
+        cellSize = Math.floor((width - 11 * groupSpacing) / 100) - cellSpacing,
+        offset = Math.floor(
+          (width - 100 * cellSize - 90 * cellSpacing - 11 * groupSpacing) / 2
+        );
+
+      var updateDuration = 125,
+        updateDelay = updateDuration / 500;
+
+      var cell = svg
+        .append("g")
+        .attr("class", "cells")
+        .attr("transform", "translate(" + offset + "," + (offset + 30) + ")");
+
+      var label = svg.append("text").attr("class", "label");
+
+      function update(n1) {
+        var cellUpdate = cell.selectAll("rect").data(d3.range(n1));
+
+        var n0 = cell.selectAll("rect").size();
+
+        //   var cellExit = cellUpdate.exit().transition()
+        //       .delay(function(d, i) { return (n0 - i) * updateDelay; })
+        //       .duration(updateDuration)
+        //       .attr("width", 0)
+        //       .remove();
+
+        var cellEnter = cellUpdate
+          .enter()
+          .append("rect")
+          .attr("width", 0)
+          .attr("height", cellSize)
+          .attr("x", function(i) {
+            var x0 = Math.floor(i / 100) % 10,
+              x1 = Math.floor(i % 10);
+            return (
+              groupSpacing * x0 + (cellSpacing + cellSize) * (x1 + x0 * 10)
+            );
+          })
+          .attr("y", function(i) {
+            var y0 = Math.floor(i / 1000),
+              y1 = Math.floor((i % 100) / 10);
+            return (
+              groupSpacing * y0 + (cellSpacing + cellSize) * (y1 + y0 * 10)
+            );
+          })
+          .transition()
+          .delay(function(d, i) {
+            return (i - n0) * updateDelay;
+          })
+          .duration(updateDuration)
+          .attr("width", cellSize);
+
+        label
+          .attr("x", offset + groupSpacing)
+          .attr("y", offset + groupSpacing)
+          .attr("dy", ".71em")
+          .transition()
+          .duration(Math.abs(n1 - n0) * updateDelay + updateDuration / 2)
+          .ease(d3.easeLinear)
+          .tween("text", function() {
+            var self = this;
+            var i = d3.interpolateNumber(n0, n1);
+            return function(t) {
+              self.textContent = formatNumber(Math.round(i(t)));
+            };
+          });
+      }
+
+      update(500);
+
+      d3.select(self.frameElement).style("height", height + "px");
+    </script>
+  </body>
+</html>

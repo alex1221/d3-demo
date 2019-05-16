@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Animation</title>
+    <link href="/assets/css/index.css" rel="stylesheet" type="text/css" />
+  </head>
+
+  <body>
+    <div class="wrap">
+      <header>
+          <h2>svg Animation</h2>
+      </header>
+      <div class="container">
+        <div id="demoList" class="list-content"></div>
+        <div class="aframe-content">
+          <iframe id="demoAframe"></iframe>
+        </div>
+      </div>
+    </div>
+
+    <script src="../assets/js/lib/jquery.min.js"></script>
+    <script src="../assets/js/lib/require.js"></script>
+    <script type="text/javascript">
+      require(["../assets/js/lib/config.js"], function() {
+        require(["../assets/js/index.js"], function(app) {
+          app.init();
+        });
+      });
+    </script>
+  </body>
+</html>

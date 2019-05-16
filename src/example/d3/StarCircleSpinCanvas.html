@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>star circle spin - canvas</title>
+    <style>
+      body {
+        margin: 0;
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+      }
+      circle {
+        fill: blue;
+        fill-opacity: 0.4;
+      }
+      line {
+        stroke: red;
+      }
+
+      .shape {
+        fill: #fdcb0b;
+        stroke: #bf9901;
+      }
+      canvas {
+        margin: 50px 50px;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas width="500" height="500" id="canvas"></canvas>
+    <script src="js/d3.v4.min.js"></script>
+    <script>
+      /* ----- size of canvas ------ */
+      const length = 120;
+
+      /* -----  number of shapes and size of shape  ------- */
+      const noShapes = 9;
+      const scalingFactor = 0.1;
+
+      /* -----  positions around the circle  ------- */
+      const compensate = (238 * scalingFactor) / 2;
+      const angle = 360 / noShapes;
+      const radian = angle * (Math.PI / 180);
+      const radius = length / 2 - compensate;
+
+      /* ----- shapes ------ */
+      const starData =
+        "M119,0  148,86  238,86  166,140  192,226  119,175  46,226  72,140  0,86  90,86z";
+
+      /* ------ virtual canvas -------- */
+      var customBase = document.createElement("custom");
+
+      let iteration = 0;
+      function drawStar() {
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+        ctx.clearRect(0, 0, length + 1, length + 1); // Clear the canvas.
+
+        const yOffset = 100;
+
+        d3.select(customBase)
+          .selectAll("shape")
+          .each(function(el, i) {
+            const shape = d3.select(this);
+
+            // get pervious step
+            const radianAngleStart = +shape.attr("radianAngleStart");
+            const radianAngleAdd = +shape.attr("radianAngleAdd");
+
+            // calculate new position
+            const xOffset =
+              length / 2 +
+              (radius * Math.cos(radianAngleStart * i + radianAngleAdd) -
+                compensate);
+            const yOffset =
+              length / 2 +
+              (radius * Math.sin(radianAngleStart * i + radianAngleAdd) -
+                compensate);
+
+            // draw star
+            ctx.beginPath();
+            ctx.moveTo(119 * scalingFactor + xOffset, 0 + yOffset);
+            ctx.lineTo(
+              148 * scalingFactor + xOffset,
+              86 * scalingFactor + yOffset
+            );
+            ctx.lineTo(
+              238 * scalingFactor + xOffset,
+              86 * scalingFactor + yOffset
+            );
+            ctx.lineTo(
+              166 * scalingFactor + xOffset,
+              140 * scalingFactor + yOffset
+            );
+            ctx.lineTo(
+              192 * scalingFactor + xOffset,
+              226 * scalingFactor + yOffset
+            );
+            ctx.lineTo(
+              119 * scalingFactor + xOffset,
+              175 * scalingFactor + yOffset
+            );
+            ctx.lineTo(
+              46 * scalingFactor + xOffset,
+              226 * scalingFactor + yOffset
+            );
+            ctx.lineTo(
+              72 * scalingFactor + xOffset,
+              140 * scalingFactor + yOffset
+            );
+            ctx.lineTo(0 + xOffset, 86 * scalingFactor + yOffset);
+            ctx.lineTo(
+              90 * scalingFactor + xOffset,
+              86 * scalingFactor + yOffset
+            );
+            ctx.closePath();
+            ctx.fillStyle = "#FDCB0B";
+            ctx.strokeStyle = "#a28200";
+            ctx.fill();
+            ctx.stroke();
+
+            // update shape with new angular data
+            const radian2 = 0.1 * iteration * (Math.PI / 180);
+            shape.attr("radianAngleAdd", radian2);
+          });
+
+        iteration++;
+      }
+
+      function addShapes() {
+        const radianAngle = Math.PI / 180 + radian;
+
+        var custom = d3.select(customBase);
+        custom
+          .selectAll("shape")
+          .data(d3.range(0, noShapes, 1))
+          .enter()
+          .append("shape")
+          .attr("xStart", (d, i) => radius * Math.cos(radianAngle * i))
+          .attr("yStart", (d, i) => radius * Math.sin(radianAngle * i))
+          .attr("radianAngleStart", radianAngle);
+      }
+
+      addShapes();
+      const interval = setInterval(drawStar, 5);
+    </script>
+  </body>
+</html>

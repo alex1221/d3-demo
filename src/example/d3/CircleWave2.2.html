@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Circle Wave2.2</title>
+  </head>
+  <body>
+    <svg width="550" height="500"></svg>
+    <script src="js/d3.v5.min.js"></script>
+    <script>
+      var svg = d3.select("svg"),
+        width = +svg.attr("width"),
+        height = +svg.attr("height"),
+        angles = d3.range(0, 2 * Math.PI, Math.PI / 200);
+
+      var path = svg
+        .append("g")
+        .attr("transform", "translate(" + width / 4 + "," + height / 4 + ")")
+        .attr("fill", "none")
+        .attr("stroke-width", 13)
+        .attr("stroke-linejoin", "round")
+        .selectAll("path")
+        .data(["cornflowerblue", "aqua", "navy"])
+        //   .data(["red", "purple", "deeppink"])
+        .enter()
+        .append("path")
+        .attr("stroke", function(d) {
+          return d;
+        })
+        .style("mix-blend-mode", "darken")
+        .attr("fill", "lightcyan")
+        .datum(function(d, i) {
+          return d3
+            .radialLine()
+            .curve(d3.curveLinearClosed)
+            .angle(function(a) {
+              return a;
+            })
+            .radius(function(a) {
+              var t = d3.now() / 3500;
+              return (
+                100 +
+                Math.cos(a * 5 - (i * 2 * Math.PI) / 3 + t) *
+                  Math.pow((1 + Math.cos(a - t)) / 3, 2) *
+                  30
+              );
+            });
+        });
+
+      d3.timer(function() {
+        path.attr("d", function(d) {
+          return d(angles);
+        });
+      });
+    </script>
+  </body>
+</html>

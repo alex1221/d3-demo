@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Linear Gradient Along Line Path</title>
+  </head>
+  <body>
+    <script src="js/d3.v4.min.js"></script>
+    <script>
+      var margin = 0,
+        width = 600 - margin,
+        height = 200 - margin;
+
+      var colorRange = [
+        "#d7191c",
+        "#fdae61",
+        "#ffffbf",
+        "#a6d96a",
+        "#1a9641",
+        "#ffffcc",
+        "#a1dab4",
+        "#41b6c4",
+        "#2c7fb8",
+        "#253494"
+      ];
+
+      var color = d3
+        .scaleLinear()
+        .range(colorRange)
+        .domain([1, 2, 3, 4, 5]);
+
+      var data = [
+        { x: 10, y: 20 },
+        { x: 20, y: 190 },
+        { x: 30, y: 50 },
+        { x: 40, y: 130 },
+        { x: 50, y: 30 },
+        { x: 60, y: 170 },
+        { x: 70, y: 24 },
+        { x: 80, y: 130 },
+        { x: 90, y: 70 },
+        { x: 100, y: 180 }
+      ];
+
+      var x = d3.scaleLinear().range([0, width]);
+      var y = d3.scaleLinear().range([height, 0]);
+
+      x.domain(
+        d3.extent(data, function(d) {
+          return d.x;
+        })
+      ).nice;
+      y.domain(
+        d3.extent(data, function(d) {
+          return d.y;
+        })
+      ).nice;
+
+      var line = d3
+        .line()
+        .x(function(d) {
+          return x(d.x);
+        })
+        .y(function(d) {
+          return y(d.y);
+        })
+        .curve(d3.curveCardinal);
+
+      var svg = d3
+        .select("body")
+        .append("svg")
+        .attr("width", width + margin * 2)
+        .attr("height", height + margin * 2)
+        .append("g")
+        .attr("transform", "translate(" + margin + "," + margin + ")");
+
+      var linearGradient = svg
+        .append("defs")
+        .append("linearGradient")
+        .attr("id", "linear-gradient")
+        .attr("gradientTransform", "rotate(90)");
+
+      linearGradient
+        .append("stop")
+        .attr("offset", "0%")
+        .attr("stop-color", color(1));
+
+      linearGradient
+        .append("stop")
+        .attr("offset", "25%")
+        .attr("stop-color", color(2));
+
+      linearGradient
+        .append("stop")
+        .attr("offset", "50%")
+        .attr("stop-color", color(3));
+
+      linearGradient
+        .append("stop")
+        .attr("offset", "75%")
+        .attr("stop-color", color(4));
+
+      linearGradient
+        .append("stop")
+        .attr("offset", "100%")
+        .attr("stop-color", color(5));
+
+      svg
+        .append("path")
+        .attr("d", line(data))
+        .attr("stroke-width", 6)
+        .attr("stroke", "url(#linear-gradient)")
+        .attr("fill", "none");
+    </script>
+  </body>
+</html>

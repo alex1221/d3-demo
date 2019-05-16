@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Redistricting</title>
+    <style>
+      path {
+        stroke-width: 1px;
+        stroke: #444;
+      }
+
+      text {
+        font: bold 64px sans-serif;
+        text-anchor: middle;
+        text-transform: uppercase;
+      }
+    </style>
+  </head>
+  <body>
+    <script src="js/d3.min.js"></script>
+    <script src="js/Redistricting/queue.min.js"></script>
+    <script>
+      var width = 960,
+        height = 500;
+
+      var colors = d3.scale.category20().range();
+
+      d3.shuffle(colors);
+
+      var svg = d3
+        .select("body")
+        .append("svg")
+        .attr("width", width)
+        .attr("height", height);
+
+      var projection = d3.geo
+        .conicConformal()
+        .parallels([34 + 20 / 60, 36 + 10 / 60])
+        .rotate([79, -33 - 45 / 60])
+        .scale(6102.002295938357)
+        .translate([570.5880508434078, 431.7927213940179]);
+
+      var path = d3.geo.path().projection(projection);
+
+      queue()
+        .defer(d3.json, "resource/Redistricting/old.geojson")
+        .defer(d3.json, "resource/Redistricting/new.geojson")
+        .await(function(err, oldDistricts, newDistricts) {
+          var combined = oldDistricts.features.map(function(d, i) {
+            return [d, newDistricts.features[i]].map(path);
+          });
+
+          var districts = svg
+            .selectAll("path")
+            .data(combined)
+            .enter()
+            .append("path")
+            .attr("d", next)
+            .style("fill", function(d, i) {
+              return colors[i];
+            });
+
+          var label = svg
+            .append("text")
+            .datum(["Old", "New"])
+            .text(next)
+            .attr("x", 300)
+            .attr("y", 400);
+
+          morph();
+
+          function morph() {
+            districts
+              .transition()
+              .duration(3200)
+              .attr("d", next)
+              .each("end", function(d, i) {
+                if (i === combined.length - 1) {
+                  morph();
+                }
+              });
+
+            label
+              .transition()
+              .duration(0)
+              .delay(3200 / 2)
+              .each("end", function() {
+                label.text(next);
+              });
+          }
+        });
+
+      function next(d) {
+        return d.reverse()[1];
+      }
+    </script>
+  </body>
+</html>

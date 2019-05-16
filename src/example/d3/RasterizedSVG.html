@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Rasterized SVG</title>
+    <style>
+      body {
+        margin: 0;
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+      }
+      #d3-svg {
+        position: absolute;
+        top: 0;
+        left: 0px;
+        border: 1px solid #333;
+        width: 475px;
+        height: 450px;
+      }
+      #overlay {
+        position: absolute;
+        top: 0;
+        left: 0px;
+        width: 475px;
+        height: 450px;
+        pointer-events: none;
+      }
+
+      #raster {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 475px;
+        height: 450px;
+        border: 1px solid #111;
+      }
+      #controls {
+        position: absolute;
+        top: 460px;
+        left: 40px;
+        font-family: Courier, monospace;
+        font-size: 20px;
+      }
+      #pixel {
+        width: 150px;
+      }
+
+      path {
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="controls">
+      pixel size:
+      <input id="pixel" type="range" min="5" max="45" value="15" />
+      <span id="pixel-size"></span>
+    </div>
+    <svg id="d3-svg">
+      <path
+        transform="translate(121, 156)scale(2)"
+        fill="#62d4ed"
+        d="
+            M0,0
+            h7.75
+            a45.5,45.5 0 1 1 0,91
+            h-7.75
+            v-20
+            h7.75
+            a25.5,25.5 0 1 0 0,-51
+            h-7.75
+            z
+            m36.2510,0
+            h32
+            a27.75,27.75 0 0 1 21.331,45.5
+            a27.75,27.75 0 0 1 -21.331,45.5
+            h-32
+            a53.6895,53.6895 0 0 0 18.7464,-20
+            h13.2526
+            a7.75,7.75 0 1 0 0,-15.5
+            h-7.75
+            a53.6895,53.6895 0 0 0 0,-20
+            h7.75
+            a7.75,7.75 0 1 0 0,-15.5
+            h-13.2526
+            a53.6895,53.6895 0 0 0 -18.7464,-20
+            z"
+      />
+      <circle id="pointer" r="27" cx="142" cy="246" fill="orange"></circle>
+    </svg>
+    <svg id="overlay"></svg>
+    <canvas id="raster"></canvas>
+
+    <script src="js/d3.min.js"></script>
+    <script src="js/RasterizedSVG/sampler.js"></script>
+    <script>
+      var svg = d3.select("svg");
+      var raster = d3.select("#raster");
+
+      var pixelSize = 13;
+
+      var fillX = 1;
+      var fillY = 1;
+      var strokeX = 1;
+      var strokeY = 1;
+
+      var TYPES = ["circle", "path", "rect", "g", "svg"];
+      // TODO: support rasterizing rectangles
+      var RASTERS = ["circle", "path", "rect"];
+      // walk the svg tree and create a list of elements that we want to rasterize
+      var root = svg.node();
+      // we do a level-order walk down the DOM
+      function walk(node, flat) {
+        if (!flat) flat = [];
+        //console.log("walking", node.nodeName)
+        if (node && TYPES.indexOf(node.nodeName) >= 0) {
+          if (RASTERS.indexOf(node.nodeName) >= 0) {
+            flat.push(node);
+          }
+          var children = node.childNodes;
+          for (var i = 0; i < children.length; i++) {
+            walk(children[i], flat);
+          }
+        }
+        return flat;
+      }
+      var flattened = [];
+      walk(root, flattened);
+
+      // make a grid using the pixel size
+      var svgBbox = svg.node().getBoundingClientRect();
+      var svgWidth = svgBbox.width;
+      var svgHeight = svgBbox.height;
+
+      flattened.forEach(function(node) {
+        var type = node.nodeName;
+        if (type === "path") {
+          var pos = getPos(node);
+          node.sampled = Sampler.getSamples(node, 300);
+          node.sampled.forEach(function(d) {
+            d.x += pos.x;
+            d.y += pos.y;
+          });
+        }
+      });
+
+      function getPos(node) {
+        var bbox = node.getBoundingClientRect();
+        var x = bbox.left - svgBbox.left;
+        var y = bbox.top - svgBbox.top;
+        return { x: x, y: y, width: bbox.width, height: bbox.height };
+      }
+      function calculateGrid() {
+        var gridXLength = svgWidth / pixelSize;
+        var gridYLength = svgHeight / pixelSize;
+        var grid = [];
+        d3.range(gridXLength).forEach(function(x, i) {
+          d3.range(gridYLength).forEach(function(y, j) {
+            var px = x * pixelSize + pixelSize / 2;
+            var py = y * pixelSize + pixelSize / 2;
+            var color = "#fff";
+            flattened.forEach(function(node) {
+              var type = node.nodeName;
+              var pos = getPos(node);
+
+              if (type === "circle") {
+                var cx = pos.x + pos.width / 2;
+                var cy = pos.y + pos.height / 2;
+                var r = pos.width / 2;
+                var dist = Math.sqrt(
+                  (cx - px) * (cx - px) + (cy - py) * (cy - py)
+                );
+                if (dist <= r) {
+                  color = d3.select(node).style("fill");
+                }
+              } else if (type === "path") {
+                if (inside({ x: px, y: py }, node.sampled)) {
+                  color = d3.select(node).style("fill");
+                }
+              } else if (type === "rect") {
+              }
+            });
+            grid.push({
+              x: px,
+              y: py,
+              color: color
+            });
+          });
+        });
+        return grid;
+      }
+
+      var canvas = raster.node();
+      canvas.width = svgWidth;
+      canvas.height = svgHeight;
+      var ctx = raster.node().getContext("2d");
+
+      var tx = 0;
+      var ty = 0;
+      var scale = 1;
+
+      function renderGrid(grid) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        grid.forEach(function(cell) {
+          ctx.fillStyle = cell.color;
+          ctx.strokeStyle = "#d9dddc";
+          var size = pixelSize * scale;
+          var x = (tx + cell.x - size / 2) * scale;
+          var y = (ty + cell.y - size / 2) * scale;
+          ctx.fillRect(x, y, size * fillX, size * fillY);
+          ctx.strokeRect(x, y, size * strokeX, size * strokeY);
+        });
+      }
+
+      var overlaySvg = d3.select("#overlay");
+
+      function renderDots(grid) {
+        var dots = overlaySvg.selectAll("circle.dot").data(grid);
+        var dotsEnter = dots
+          .enter()
+          .append("circle")
+          .classed("dot", true);
+        dots.exit().remove();
+
+        dots.attr({
+          cx: function(d, i) {
+            return d.x;
+          },
+          cy: function(d, i) {
+            return d.y;
+          },
+          r: 2,
+          fill: "none",
+          stroke: "#888"
+        });
+      }
+
+      var grid = calculateGrid();
+      renderGrid(grid);
+      renderDots(grid);
+
+      var zoom = d3.behavior.zoom().on("zoom", function() {
+        console.log(d3.event);
+        tx = d3.event.translate[0];
+        ty = d3.event.translate[1];
+        scale = d3.event.scale;
+        renderGrid(grid);
+      });
+      raster.call(zoom);
+
+      var circle = svg.select("circle");
+      var drag = d3.behavior.drag().on("drag", function(d) {
+        var x = d3.event.x;
+        var y = d3.event.y;
+        circle.attr({
+          cx: x,
+          cy: y
+        });
+
+        var grid = calculateGrid();
+        renderGrid(grid);
+      });
+      circle.call(drag);
+
+      d3.select("#pixel-size").text(pixelSize);
+
+      d3.select("#pixel").on("input", function() {
+        pixelSize = +this.value;
+        d3.select("#pixel-size").text(pixelSize);
+        var grid = calculateGrid();
+        renderGrid(grid);
+        renderDots(grid);
+      });
+
+      function inside(point, vs) {
+        // ray-casting algorithm based on
+        // http://www.ecse.rpi.edu/Homepages/wrf/Research/Short_Notes/pnpoly.html
+        var x = point.x,
+          y = point.y;
+        var inside = false;
+        for (var i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+          var xi = vs[i].x,
+            yi = vs[i].y;
+          var xj = vs[j].x,
+            yj = vs[j].y;
+
+          var intersect =
+            yi > y != yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
+          if (intersect) inside = !inside;
+        }
+        return inside;
+      }
+
+      // bounce the circle at load so people are more likely to click it.
+      circle
+        .transition()
+        .duration(4000)
+        .ease("bounce")
+        .attr({
+          r: 35
+        })
+        .each("end", function() {
+          circle
+            .transition()
+            .duration(3000)
+            .ease("bounce")
+            .attr({ r: 20 });
+        });
+    </script>
+  </body>
+</html>

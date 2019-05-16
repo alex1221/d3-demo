@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Heart Loop</title>
+    <style>
+      html {
+        font-size: 62.5%;
+      }
+
+      .colorStatus {
+        font-family: "Open Sans";
+        font-size: 4rem;
+        fill: #989898;
+        font-weight: 300;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="heartChart" style="text-align: center;"></div>
+    <script src="js/d3.min.js"></script>
+
+    <script language="javascript" type="text/javascript">
+      ///////////////////////////////////////////////////////////////////////////
+      //////////////////// Set up and initiate svg containers ///////////////////
+      ///////////////////////////////////////////////////////////////////////////
+
+      var margin = { top: 0, right: 0, bottom: 0, left: 0 },
+        spacing = 30;
+      var docWidth = window.innerWidth - margin.left - margin.right - spacing,
+        docHeight = window.innerHeight - margin.top - margin.bottom - spacing;
+
+      var minSize = Math.min(docWidth - spacing * 2, docHeight - spacing * 2),
+        width = minSize,
+        height = minSize;
+
+      //SVG container
+      var chart = d3
+        .select("#heartChart")
+        .append("svg")
+        .attr("width", docWidth)
+        .attr("height", docHeight)
+        .attr("class", "chart")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+      var svg = chart
+        .append("g")
+        .attr(
+          "transform",
+          "translate(" + (docWidth / 2 - width / 2) + "," + spacing + ")"
+        )
+        .attr("width", width)
+        .attr("height", height);
+
+      //Grey background color
+      d3.select("body").style("background", "#262626");
+
+      //Reset the overall font size
+      var newFontSize = (width * 62.5) / 2000;
+      d3.select("html").style("font-size", newFontSize + "%");
+
+      //Circle ranges
+      var circeRanges = [(8 * width) / 2000, (60 * width) / 2000];
+      var forceRanges = [(6 * width) / 2000, (10 * width) / 2000];
+
+      //Blend mode info
+      svg
+        .append("text")
+        .attr("class", "colorStatus")
+        .attr("x", 0)
+        .attr("y", height - spacing)
+        .style("text-anchor", "middle")
+        .text("Made with heart");
+
+      ///////////////////////////////////////////////////////////////////////////
+      //////////////////////////// Set up infinity path /////////////////////////
+      ///////////////////////////////////////////////////////////////////////////
+
+      //But adjusted for D3 and made to move along a path
+      var ID = 0, //makes all particles unique
+        counter = 0, //counter for the infinity path
+        colors = ["#ffd2dd", "#c0e6ff", "#00b4a0", "#ff5050", "#a7fae6"], //first colors
+        colorMode = "screen", //first blend mode
+        particles = [];
+
+      //Create the infinity path
+      //Formula from http://gamedev.stackexchange.com/questions/43691/how-can-i-move-an-object-in-an-infinity-or-figure-8-trajectory
+      var infScale = (width / 2) * 0.7;
+      var x, y, scale;
+      var heartPath = [];
+      for (var i = 0; i < 209; i++) {
+        t = i * 0.03;
+        scale = 2 / (3 - Math.cos(2 * t));
+        //x = scale * Math.cos(t);
+        //y = scale * Math.sin(2*t) / 2;
+
+        //t = i*0.1;
+        x = 16 * Math.pow(Math.sin(t), 3);
+        y =
+          13 * Math.cos(t) -
+          5 * Math.cos(2 * t) -
+          2 * Math.cos(3 * t) -
+          Math.cos(4 * t);
+
+        //console.log("i: " + i + " x:" + x + " y:" + y);
+        heartPath.push({ x: x * infScale, y: y * infScale });
+      } //for i
+
+      //Scales
+      var xScale = d3.scale
+        .linear()
+        .domain([
+          d3.min(heartPath, function(d) {
+            return d.x;
+          }),
+          d3.max(heartPath, function(d) {
+            return d.x;
+          })
+        ])
+        .range([0, width]);
+
+      var yScale = d3.scale
+        .linear()
+        .domain([
+          d3.min(heartPath, function(d) {
+            return d.y;
+          }),
+          d3.max(heartPath, function(d) {
+            return d.y;
+          })
+        ])
+        .range([height, 0]);
+
+      x = 16 * Math.pow(Math.sin(i), 3);
+      y =
+        13 * Math.cos(i) -
+        5 * Math.cos(2 * i) -
+        2 * Math.cos(3 * i) -
+        Math.cos(4 * i);
+
+      ///////////////////////////////////////////////////////////////////////////
+      //////////////////// Make the circles move in a pattern ///////////////////
+      ///////////////////////////////////////////////////////////////////////////
+
+      //Wrapper for the circles
+      var circleWrapper = svg
+        .append("g")
+        .attr("class", "circleWrapper")
+        .style("isolation", "isolate");
+
+      function runInfinity() {
+        //Create new particles
+        for (var j = 0; j < Math.round(Math.random() * 16); j++) {
+          spawn(heartPath[counter].x, heartPath[counter].y);
+        }
+
+        //Remove non-alive particles
+        particles = particles.filter(function(d) {
+          return d.alive;
+        });
+
+        //DATA JOIN
+        //Join new data with old elements, if any
+        var circleGroup = circleWrapper
+          .selectAll(".particle")
+          .data(particles, function(d) {
+            return d.id;
+          });
+
+        //UPDATE
+        circleGroup
+          .style("mix-blend-mode", colorMode)
+          .each(move)
+          .transition("move")
+          .duration(50)
+          .ease("linear")
+          .attr("cx", function(d) {
+            return xScale(d.x);
+          })
+          .attr("cy", function(d) {
+            return yScale(d.y);
+          })
+          .attr("r", function(d) {
+            return d.radius;
+          });
+
+        //ENTER
+        circleGroup
+          .enter()
+          .append("circle")
+          .attr("class", "particle")
+          .attr("cx", function(d) {
+            return xScale(d.x);
+          })
+          .attr("cy", function(d) {
+            return yScale(d.y);
+          })
+          .style("fill", function(d) {
+            return d.color;
+          })
+          .style("mix-blend-mode", colorMode)
+          .attr("r", function(d) {
+            return d.radius;
+          });
+
+        //EXIT
+        circleGroup.exit().remove();
+
+        counter = (counter + 1) % heartPath.length;
+      } //runInfinity
+
+      //Create an interval that runs along the infinity path
+      var loopInfinity = setInterval(runInfinity, 50);
+
+      ///////////////////////////////////////////////////////////////////////////
+      /////////////// Functions to create and move the particles ////////////////
+      ///////////////////////////////////////////////////////////////////////////
+
+      //Code heavily based on http://codepen.io/soulwire/pen/foktm
+      //Calculates new position
+      function move(d) {
+        d.x += d.vx;
+        d.y += d.vy;
+
+        d.vx *= d.drag;
+        d.vy *= d.drag;
+
+        d.theta += getRandomNumber(-0.5, 0.5) * d.wander;
+        d.vx += Math.sin(d.theta) * 0.5;
+        d.vy += Math.cos(d.theta) * 0.5;
+
+        d.radius *= d.age;
+        d.alive = d.radius > 0.5;
+      } //move
+
+      //Create a particle
+      function spawn(x, y) {
+        //Play around with these numbers to get different effects
+        particle = {
+          x: x,
+          y: y,
+          id: ID,
+          alive: true,
+          radius: getRandomNumber(circeRanges[0], circeRanges[1]),
+          wander: getRandomNumber(1, 1.5),
+          color: colors[Math.round(getRandomNumber(0, colors.length - 1))],
+          drag: getRandomNumber(0.2, 0.99),
+          age: getRandomNumber(0.92, 0.98),
+          theta: getRandomNumber(0, 2 * Math.PI),
+          force: getRandomNumber(forceRanges[0], forceRanges[1])
+        };
+
+        ID += 1;
+
+        particle.vx = Math.sin(particle.theta) * particle.force;
+        particle.vy = Math.cos(particle.theta) * particle.force;
+
+        particles.push(particle);
+      } //spawn
+
+      function getRandomNumber(start, end) {
+        return Math.random() * (end - start) + start;
+      }
+
+      ///////////////////////////////////////////////////////////////////////////
+      ////////////// Functions to move through different blend modes ////////////
+      ///////////////////////////////////////////////////////////////////////////
+
+      var colorCounter = 0;
+      function switchColors() {
+        colorCounter = (colorCounter + 1) % 7;
+
+        switch (colorCounter) {
+          case 0:
+            screenMode();
+            break;
+          case 1:
+            noMode();
+            break;
+          case 2:
+            screenModeRainbow();
+            break;
+          case 3:
+            screenModeGreen();
+            break;
+          case 4:
+            multiplyModeGreen();
+            break;
+          case 5:
+            multiplyModeRainbow();
+            break;
+          case 6:
+            multiplyModePurple();
+            break;
+        } //switch colorCounter
+      } //switchColors
+
+      //var loopColors = setInterval(switchColors, 3000);
+
+      function screenMode() {
+        colorMode = "screen";
+        colors = [
+          "#69D2E7",
+          "#A7DBD8",
+          "#E0E4CC",
+          "#F38630",
+          "#FA6900",
+          "#FF4E50",
+          "#F9D423"
+        ];
+        d3.select("body")
+          .transition()
+          .duration(500)
+          .style("background", "#262626");
+        d3.select(".colorStatus").text("mix-blend-mode: screen");
+      } //screenMode
+
+      function noMode() {
+        colorMode = "none";
+        colors = [
+          "#69D2E7",
+          "#A7DBD8",
+          "#E0E4CC",
+          "#F38630",
+          "#FA6900",
+          "#FF4E50",
+          "#F9D423"
+        ];
+        d3.select("body")
+          .transition()
+          .duration(500)
+          .style("background", "#262626");
+        d3.select(".colorStatus").text("mix-blend-mode: none");
+      } //noMode
+
+      function screenModeRainbow() {
+        colorMode = "screen";
+        colors = [
+          "#2c7bb6",
+          "#00a6ca",
+          "#00ccbc",
+          "#90eb9d",
+          "#ffff8c",
+          "#f9d057",
+          "#f29e2e",
+          "#e76818",
+          "#d7191c"
+        ];
+        d3.select("body")
+          .transition()
+          .duration(500)
+          .style("background", "#262626");
+        d3.select(".colorStatus").text("mix-blend-mode: screen");
+      } //multiplyModeRainbow
+
+      function screenModeGreen() {
+        colorMode = "screen";
+        colors = ["#1B676B", "#519548", "#88C425", "#BEF202", "#EAFDE6"];
+        d3.select("body")
+          .transition()
+          .duration(500)
+          .style("background", "#262626");
+        d3.select(".colorStatus").text("mix-blend-mode: screen");
+      } //screenModeGreen
+
+      function multiplyModeGreen() {
+        colorMode = "multiply";
+        colors = ["#1B676B", "#519548", "#88C425", "#BEF202", "#EAFDE6"];
+        d3.select("body")
+          .transition()
+          .duration(500)
+          .style("background", "white");
+        d3.select(".colorStatus").text("mix-blend-mode: multiply");
+      } //multiplyModeGreen
+
+      function multiplyModeRainbow() {
+        colorMode = "multiply";
+        colors = [
+          "#2c7bb6",
+          "#00a6ca",
+          "#00ccbc",
+          "#90eb9d",
+          "#ffff8c",
+          "#f9d057",
+          "#f29e2e",
+          "#e76818",
+          "#d7191c"
+        ];
+        d3.select("body")
+          .transition()
+          .duration(500)
+          .style("background", "white");
+        d3.select(".colorStatus").text("mix-blend-mode: multiply");
+      } //multiplyModeRainbow
+
+      function multiplyModePurple() {
+        colorMode = "multiply";
+        colors = ["#490A3D", "#BD1550", "#E97F02", "#F8CA00", "#8A9B0F"];
+        d3.select("body")
+          .transition()
+          .duration(500)
+          .style("background", "#F8E8E8");
+        d3.select(".colorStatus").text("mix-blend-mode: multiply");
+      } //multiplyModePurple
+    </script>
+  </body>
+</html>

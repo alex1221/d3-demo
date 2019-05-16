@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>morph experiment #3</title>
+    <style>
+      body {
+        background-color: #192247;
+      }
+    </style>
+  </head>
+  <body>
+    <script src="js/d3.min.js"></script>
+    <script src="js/MorphExperiment/sampler.js"></script>
+
+    <svg width="960" height="500">
+      <g transform="translate(-50,0)" opacity="0">
+        <path
+          id="outer"
+          fill="none"
+          stroke="#fff"
+          stroke-width="0.8"
+          stroke-miterlimit="10"
+          d="M174.7,85c-24.5,14-57,18-45.8,45.7
+          c9.5,23.4-28.2,15.1-45.8-25.7s20.5-65.8,45.8-65.8S196.7,72.5,174.7,85Z"
+        />
+        <path
+          id="inner"
+          fill="none"
+          stroke="#fff"
+          stroke-width="0.8"
+          stroke-miterlimit="10"
+          d="M128.4,64.4c-1.9-0.1-5.9,6-5.9,6s-2.3-3.6-1-7.4
+          c1.4-3.8,3.4-3.5,5-3.1C128.3,60.2,141.8,65.1,128.4,64.4z"
+        />
+      </g>
+      <g id="output"></g>
+    </svg>
+
+    <script>
+      var svg = d3.select("svg");
+      var inner = d3.select("#inner");
+      var outer = d3.select("#outer");
+      var numSamples = 20;
+      var numLines = 31;
+
+      var scale = 3;
+      var xOffset = 0;
+      var yOffset = 40;
+
+      var line = d3.svg
+        .line()
+        .x(function(d) {
+          return d.x;
+        })
+        .y(function(d) {
+          return d.y;
+        })
+        //.interpolate("linear-closed")
+        .interpolate("cardinal-closed")
+        .interpolate("basis-closed");
+
+      var ins = Sampler.getSamples(inner.node(), numSamples);
+      var outs = Sampler.getSamples(outer.node(), numSamples);
+
+      var output = d3.select("#output");
+
+      var lines = [];
+      d3.range(numLines).forEach(function(index) {
+        var samples = [];
+        var ratio = index / numLines;
+        var i, x, y;
+        for (i = 0; i < numSamples; i++) {
+          x = ins[i].x * (1 - ratio) + outs[i].x * ratio;
+          y = ins[i].y * (1 - ratio) + outs[i].y * ratio;
+          samples.push({ x: x * scale + xOffset, y: y * scale + yOffset });
+        }
+        lines.push(samples);
+      });
+
+      var blended = output.selectAll("path.blend").data(lines);
+      blended
+        .enter()
+        .append("path")
+        .classed("blend", true)
+        .attr({
+          d: function(d) {
+            return line(d);
+          },
+          fill: "none",
+          stroke: "#ff005d",
+          "stroke-width": 2
+        });
+
+      var bbox = blended.node().getBoundingClientRect();
+      console.log("BBOX", bbox);
+      var center = {
+        x: bbox.left + bbox.width / 2 - 15,
+        y: bbox.top + bbox.height / 2 - 15
+      };
+
+      blended.attr({
+        transform: "rotate(0, " + [center.x, center.y] + ")"
+      });
+
+      output.append("circle").attr({
+        r: 5,
+        cx: center.x,
+        cy: center.y,
+        //fill: "white"
+        fill: "none"
+      });
+
+      function transition() {
+        blended
+          .transition()
+          .ease("cubic")
+          .duration(800)
+          .delay(function(d, i) {
+            return (numLines - i) * 100;
+          })
+          .attrTween("transform", function(d) {
+            return function(t) {
+              var deg = d3.interpolate(0, 180)(t);
+              return "rotate(" + deg + "," + [center.x, center.y] + ")";
+            };
+          })
+          .each("end", function(d, i) {
+            if (i !== 0) return;
+            blended //.filter(function(d,j) { return i === j })
+              .transition()
+              .ease("sin")
+              .duration(600)
+              .delay(function(d, j) {
+                return (numLines - j) * 100 + 800;
+              })
+              .attrTween("transform", function(d) {
+                return function(t) {
+                  var deg = d3.interpolate(180, 0)(t);
+                  return "rotate(" + deg + "," + [center.x, center.y] + ")";
+                };
+              })
+              .each("end", function(d, k) {
+                if (i === 0) {
+                  transition();
+                }
+              });
+          });
+      }
+      transition();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>thing 0005</title>
+    <style>
+      body {
+        margin: 0;
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <script src="js/d3.v4.min.js"></script>
+    <script src="js/Thing/regl.js"></script>
+    <script src="js/Thing/bundle.js"></script>
+    <script>
+      var width = 960;
+      var height = 500;
+      var num = 600;
+      var maxlen = 50;
+
+      var minSize = 4;
+      var cellSize = 8;
+      //     var angleVelocity = 206.432
+      //   var radiusVelocity = 7.4597881856
+
+      //   var angleVelocity = 183.496
+      //   var radiusVelocity = 6
+      var angleVelocity = 193.496;
+      var radiusVelocity = 5;
+
+      const canvas = document.createElement("canvas");
+      const regl = createRegl(canvas);
+      const camera = createCamera(canvas);
+
+      // stolen from Nadieh's block http://bl.ocks.org/nbremer/5cd07f2cb4ad202a9facfbd5d2bc842e
+      var colors = [
+        "#2c7bb6",
+        "#00a6ca",
+        "#00ccbc",
+        "#90eb9d",
+        "#ffff8c",
+        "#f9d057",
+        "#f29e2e",
+        "#e76818"
+      ];
+      colorArray = colors.map(function(c) {
+        var rgb = d3.rgb(c);
+        return [rgb.r / 255, rgb.g / 255, rgb.b / 255, 0.9];
+      });
+
+      var i = 0;
+      var sequences = d3.range(num).map(function(j) {
+        var len = maxlen;
+        var len = 5 + Math.ceil(Math.random() * maxlen);
+
+        var color = colorArray[Math.floor(Math.random() * colorArray.length)];
+        //var color = colors[j % colors.length]
+        return d3.range(len).map(function(k) {
+          i++;
+          return {
+            i: i,
+            j: j,
+            k: k,
+            //size: minSize + k/len * (cellSize - minSize),
+            size:
+              minSize +
+              Math.abs(Math.sin((k / len) * Math.PI)) * (cellSize - minSize),
+            color: color //"#60ffe4"
+          };
+        });
+      });
+
+      var rects = [];
+      sequences.forEach(function(sequence) {
+        sequence.forEach(function(cell) {
+          var ai = Math.sqrt(4 + cell.i);
+          var theta = (ai * angleVelocity * Math.PI) / 180;
+          var radius = ai * radiusVelocity;
+          cell.x = width / 2 + radius * Math.cos(theta);
+          cell.y = height / 2 + radius * Math.sin(theta);
+          cell.theta = theta;
+          rects.push(cell);
+        });
+      });
+
+      var speedOffsets = d3.range(num).map(function(i) {
+        return 6 + Math.sqrt((i / num) * 35); //Math.random() * 5
+      });
+      function updateRects(t) {
+        rects.forEach(function(d) {
+          var dt = speedOffsets[d.j] * t;
+          var ai = Math.sqrt(4 + d.i);
+          var theta = (ai * angleVelocity * Math.PI) / 180 + dt;
+          var radius = ai * radiusVelocity;
+          d.x = width / 2 + radius * Math.cos(theta);
+          d.y = height / 2 + radius * Math.sin(theta);
+          d.theta = theta;
+        });
+      }
+
+      const drawDots = regl({
+        blend: {
+          enable: true,
+          func: {
+            srcRGB: "src alpha",
+            srcAlpha: "src alpha",
+            dstRGB: "one minus src alpha",
+            dstAlpha: "one minus src alpha"
+          }
+        },
+        frag: `
+        precision mediump float;
+        varying vec4 v_Color;
+        void main () {
+          float r = 0.0, delta = 0.0, alpha = 1.0;
+          vec2 cxy = 2.0 * gl_PointCoord - 1.0;
+          r = dot(cxy, cxy);
+          if (r > 1.0) {
+              discard;
+          }
+          gl_FragColor = v_Color * alpha;
+          //gl_FragColor = v_Color;
+        }`,
+
+        vert: `
+        precision mediump float;
+        attribute vec2 position;
+        attribute float pointWidth;
+        attribute vec4 color;
+        varying vec4 v_Color;
+      
+        uniform float stageWidth;
+        uniform float stageHeight;
+      
+        // helper function to transform from pixel space to normalized
+        // device coordinates (NDC). In NDC (0,0) is the middle,
+        // (-1, 1) is the top left and (1, -1) is the bottom right.
+        // Stolen from Peter Beshai's great blog post:
+        // http://peterbeshai.com/beautifully-animate-points-with-webgl-and-regl.html
+        vec2 normalizeCoords(vec2 position) {
+          // read in the positions into x and y vars
+          float x = position[0];
+          float y = position[1];
+      
+          return vec2(
+            2.0 * ((x / stageWidth) - 0.5),
+            // invert y to treat [0,0] as bottom left in pixel space
+            -(2.0 * ((y / stageHeight) - 0.5)));
+        }
+      
+        void main () {
+          gl_PointSize = pointWidth;
+          gl_Position = vec4(normalizeCoords(position), 0, 1);
+          v_Color = color;
+        }`,
+
+        attributes: {
+          // There will be a position value for each point
+          // we pass in
+          position: function(context, props) {
+            return props.points.map(function(point) {
+              return [point.x, point.y];
+            });
+          },
+          // Now pointWidth is an attribute, as each
+          // point will have a different size.
+          pointWidth: function(context, props) {
+            return props.points.map(function(point) {
+              return point.size;
+            });
+          },
+          color: function(context, props) {
+            return props.points.map(function(point) {
+              return point.color;
+            });
+          }
+        },
+
+        uniforms: {
+          //color: [1., 0., 0., 1.],
+          //     color: function(context, props) {
+          //      return [Math.cos(context.tick / 100), 0.304, 1.000, 1.000];
+          //     },
+          // FYI: there is a helper method for grabbing
+          // values out of the context as well.
+          // These uniforms are used in our fragment shader to
+          // convert our x / y values to WebGL coordinate space.
+          stageWidth: regl.context("drawingBufferWidth"),
+          stageHeight: regl.context("drawingBufferHeight")
+        },
+
+        count: function(context, props) {
+          // set the count based on the number of points we have
+          return props.points.length;
+        },
+        primitive: "points"
+      });
+
+      console.log("rects", rects);
+      regl.frame(function({ tick }) {
+        regl.clear({
+          color: [0.1, 0.1, 0.1, 1],
+          depth: 1
+        });
+        // Each loop, update the data
+        //updateData(points);
+        updateRects(tick / 1000);
+        // And draw it!
+        drawDots({
+          pointWidth: cellSize,
+          points: rects
+        });
+      });
+
+      window.addEventListener("resize", fit(canvas), false);
+      document.body.appendChild(canvas);
+    </script>
+  </body>
+</html>

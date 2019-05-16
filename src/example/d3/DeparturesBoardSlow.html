@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Departures board (slow)</title>
+    <style>
+      body {
+        background-color: #222;
+        font: 116px "Roboto Condensed";
+        color: #ecdb41;
+        text-align: center;
+      }
+      div {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+      }
+      span {
+        position: relative;
+      }
+      .container {
+        top: 44px;
+        left: 12px;
+      }
+      .flap {
+        width: 110px;
+        right: auto;
+      }
+      .half {
+        height: 62px;
+        overflow: hidden;
+        background: #444;
+        transform-style: preserve-3d;
+        animation-timing-function: ease-in;
+        animation-duration: 0.6s;
+        animation-iteration-count: infinite;
+      }
+      .divider {
+        top: 61px;
+        height: 2px;
+        background: #222;
+      }
+      .prev {
+        top: 62px;
+      }
+      .back,
+      .front {
+        backface-visibility: hidden;
+      }
+      .front {
+        transform-origin: center bottom;
+      }
+      .back {
+        top: 62px;
+        transform-origin: center top;
+      }
+      .front span,
+      .next span {
+        top: -6px;
+      }
+      .back span,
+      .prev span {
+        top: -68px;
+      }
+      .animated .front {
+        animation-name: flipFront;
+      }
+      .animated .back {
+        animation-name: flipBack;
+      }
+      @keyframes flipFront {
+        0% {
+          transform: rotateX(0deg);
+          background-color: #444;
+        }
+        100% {
+          transform: rotateX(180deg);
+          background-color: #1c1c1c;
+        }
+      }
+      @keyframes flipBack {
+        0% {
+          transform: rotateX(180deg);
+          background-color: #222;
+        }
+        100% {
+          transform: rotateX(0deg);
+          background-color: #444;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container"></div>
+    <script src="js/d3.v4.min.js"></script>
+    <script>
+      let cities = ["SF", "LA", "MAD", "GVA", "NYC", "LHC", "SF"].map(d =>
+        d.padEnd(8)
+      );
+
+      d3.shuffle(cities);
+
+      let cycle = {};
+
+      for (let i = 65; i < 90; i++) {
+        cycle[String.fromCharCode(i)] = String.fromCharCode(i + 1);
+      }
+
+      cycle["Z"] = " ";
+      cycle[" "] = "A";
+
+      let rows = d3
+        .select(".container")
+        .selectAll(".row")
+        .data(cities.splice(0, 3))
+        .enter()
+        .append("div")
+        .attr("class", "row")
+        .style("top", (d, i) => i * 144 + "px");
+
+      let flaps = rows
+        .selectAll("div")
+        .data(city => city.split(""))
+        .enter()
+        .append("div")
+        .attr("class", "flap")
+        .style("left", (d, i) => i * 118 + "px");
+
+      ["next", "prev", "back", "front"].forEach(d => {
+        if (d === "front") {
+          flaps.append("div").attr("class", "divider");
+        }
+
+        flaps
+          .append("div")
+          .attr("class", "half " + d)
+          .append("span")
+          .text(letter => letter);
+      });
+
+      cities.push(...rows.data());
+      flip();
+
+      function flip() {
+        d3.timeout(() => {
+          let q = d3.queue();
+          rows.each(function() {
+            d3.select(this)
+              .selectAll(".flap")
+              .each(function(fromLetter, i) {
+                let toLetter = cities[0][i],
+                  flap = d3.select(this);
+                if (fromLetter !== toLetter) {
+                  q.defer(
+                    flipLetter,
+                    flap.datum(toLetter),
+                    fromLetter,
+                    toLetter
+                  );
+                }
+              });
+            cities.push(cities.shift());
+          });
+          q.awaitAll(function(err) {
+            if (err) {
+              throw err;
+            }
+            flip();
+          });
+        }, 500);
+      }
+
+      function flipLetter(flap, fromLetter, toLetter, cb) {
+        let current = fromLetter,
+          next = cycle[fromLetter],
+          prevFlaps = flap.selectAll(".prev span, .front span"),
+          nextFlaps = flap.selectAll(".back span, .next span");
+
+        flap.select(".front").on("animationiteration", function() {
+          if (next === toLetter) {
+            flap
+              .classed("animated", false)
+              .selectAll("span")
+              .text(toLetter);
+            return cb();
+          }
+
+          prevFlaps.text(next);
+
+          current = next;
+          next = cycle[next];
+
+          setTimeout(function() {
+            nextFlaps.text(next);
+          }, 0);
+        });
+
+        flap.classed("animated", true);
+
+        nextFlaps.text(next);
+      }
+    </script>
+  </body>
+</html>

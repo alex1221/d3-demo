@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>[animated charts] stocks from dataset</title>
+    <style>
+      body {
+        margin: 0;
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+      }
+
+      svg {
+        font: 10px sans-serif;
+      }
+
+      .line {
+        fill: none;
+        stroke: black;
+        stroke-width: 2px;
+      }
+
+      .area {
+        stroke: black;
+        stroke-width: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <script src="js/d3.v4.min.js"></script>
+    <script>
+      // Conventions de formattage et de marges
+      // basées sur https://bl.ocks.org/mbostock/3019563
+      var margin = { top: 20, right: 30, bottom: 20, left: 100 },
+        width = 760 - margin.left - margin.right,
+        height = 300 - margin.top - margin.bottom;
+
+      // On ne crée qu'un seul canvas SVG dans lequel on va dessiner
+      // tous les graphiques
+      var svg = d3
+        .select("body")
+        .append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+      // Format de parsing des données
+      var parseDate = d3.timeParse("%b %Y");
+
+      // Scales pour les positions et couleurs
+      // ce sont les même pour tous les chart (sauf le scale y
+      // qui va parfois un peu changer)
+      var x = d3.scaleTime().range([0, width]),
+        y = d3.scaleLinear().range([height, 0]),
+        c = d3.scaleOrdinal(d3.schemeCategory10);
+
+      // Chargement du jeu de données stock market
+      d3.text("resource/StocksFromDataset/dataset.csv", function(error, raw) {
+        var dsv = d3.dsvFormat(",");
+        var data = dsv.parse(raw);
+
+        // Nest stock values by symbol.
+        var symbols = d3
+          .nest()
+          .key(function(d) {
+            return d.symbol;
+          })
+          .entries(data);
+
+        // Parse and caculate some values for each symbols
+        symbols.forEach(function(s) {
+          s.values.forEach(function(d) {
+            d.date = parseDate(d.date);
+            d.price = +d.price;
+          });
+
+          s.maxPrice = d3.max(s.values, function(d) {
+            return d.price;
+          });
+          s.sumPrice = d3.sum(s.values, function(d) {
+            return d.price;
+          });
+        });
+
+        // Important pour la suite car les symbols sont ordonnés
+        // en particulier les multiple
+        symbols.sort(function(a, b) {
+          return b.maxPrice - a.maxPrice;
+        });
+
+        // Le scale X ne change pas: on map toujours les données temporelles
+        // par leur valeur price
+        x.domain(
+          d3.extent(data, function(d) {
+            return d.date;
+          })
+        );
+
+        // On créee un seul élément <path> qui sera ensuite utilisé tout
+        // le temps quel que soit le graphique
+        // La fonction anonyme après .data(symbols, func.. permet de s'assurer
+        // que l'on va toujours associer les bonnes données à la bonne forme
+        // Lire https://bost.ocks.org/mike/constancy/
+        svg
+          .selectAll(".area")
+          .data(symbols, function(d) {
+            return d.key;
+          })
+          .enter()
+          .append("path")
+          .attr("class", "area");
+
+        var duration = 1000;
+
+        // Pour jouer les différents graphiques de manière séquentielle
+        function play(delay = 0) {
+          setTimeout(empty_area_chart, (delay += duration));
+          setTimeout(area_chart, (delay += duration));
+          setTimeout(multiple_chart, (delay += duration));
+          setTimeout(stacked_chart, (delay += duration));
+          setTimeout(stream_chart, (delay += duration));
+
+          // Repeat
+          setTimeout(play, (delay += duration));
+        }
+
+        play();
+
+        // AREA CHART
+        // Based on https://bl.ocks.org/mbostock/3883195
+        // Il s'agit d'utiliser une autre fonction dessin que le line()
+        // et il faut garder en tête
+        //  y0: valeur minimum
+        //  y1: valeur maximum (pour l'élément en cours)
+        function area_chart(empty = false) {
+          x.domain(
+            d3.extent(data, function(d) {
+              return d.date;
+            })
+          );
+          y.domain([
+            0,
+            d3.max(data, function(d) {
+              return d.price;
+            })
+          ]);
+          y.range([height, 0]);
+
+          // S'applique sur symbols[0].values
+          // Example de retour: M0,229.75876602995248L5.261314655172414,226.5877499775805L10.183189655172415,220.42059008160703L15.43743265086207,223.8480853735091L20.529027478448278,
+          var area = d3
+            .area()
+            .x(function(d) {
+              return x(d.date);
+            })
+            .y1(function(d) {
+              return y(d.price);
+            });
+
+          // Définit la zone à partir de laquelle il faut commencer à dessiner
+          // les areas, à savoir sur une baseline plate sans offset
+          // vetical
+          // Equivalent à area.y0(height);
+          area.y0(y(0));
+
+          // On met à jour le <path> avec un path pour chaque entreprise
+          // et on ajute aussi la couleur et la transparence en fonction
+          // du type de chart que l'on dessine (rempli ou non)
+          svg
+            .selectAll(".area")
+            .data(symbols)
+            .transition()
+            .duration(duration)
+            .attr("fill-opacity", function(d) {
+              return empty ? 0 : 0.5;
+            })
+            .style("fill", function(d) {
+              return c(d.key);
+            })
+            .style("stroke", function(d) {
+              return !empty ? null : c(d.key);
+            })
+            .style("stroke-width", function(d) {
+              return !empty ? "0px" : "2px";
+            })
+            .attr("d", function(d) {
+              return area(d.values);
+            })
+            //  .style("opacity", .5)
+            .attr("transform", function(d, i) {
+              return "translate(0, 0)";
+            });
+        }
+
+        // LINE CHART
+        // On dessine simplement comme un area chart vide, car cela permet
+        // la transition plutot qu'en créant à partir de la fonction line()
+        // comme dans l'exemple du tp3 sur multiple line chart
+        function empty_area_chart() {
+          area_chart(true);
+        }
+
+        // MULTIPLE CHART
+        // Il s'agit en fait d'un area chart qui a deux propriétés
+        // particulières : 1) chaque entreprise est décalée verticallement
+        // et on la dessine sur une bande restreinte
+        function multiple_chart() {
+          // On pourrait utiliser un scale ordinal
+          // y = d3.scaleOrdinal ..
+          // mais on préfère garder un scale linéaire pour la suite
+          y.domain([
+            0,
+            d3.max(data, function(d) {
+              return d.price;
+            })
+          ]);
+
+          // 1) Création d'une bande de dessin pour la hauteur
+          y.range([height / symbols.length, 0]);
+
+          var area = d3
+            .area()
+            .x(function(d) {
+              return x(d.date);
+            })
+            .y1(function(d) {
+              return y(d.price);
+            })
+            .y0(y(0));
+
+          svg
+            .selectAll(".area")
+            .data(symbols)
+            .transition()
+            .duration(duration)
+            .style("fill", function(d) {
+              return c(d.key);
+            })
+            .attr("fill-opacity", 1)
+            .attr("d", function(d) {
+              return area(d.values);
+            })
+            .attr("transform", function(d, i) {
+              // 2) Décalage vertical
+              return "translate(0," + (i * height) / symbols.length + ")";
+            });
+        }
+
+        // STACKED CHART
+        // Il s'agit de dessiner les cours de bourses de manière relative
+        // aux autres pour chaque jour
+        function stacked_chart(streamgraph = false) {
+          y.domain([
+            0,
+            d3.sum(symbols, function(d) {
+              return d.maxPrice;
+            })
+          ]);
+          y.range([height, 0]);
+
+          // On crée une fonction
+          var area = d3
+            .area()
+            .x(function(d) {
+              return x(d.data.date);
+            })
+            .y0(function(d) {
+              return y(d[0]);
+            })
+            .y1(function(d) {
+              return y(d[1]);
+            });
+
+          // On a besoin de reformater les données sous forme de series
+          // see https://bl.ocks.org/mbostock/3886208 et comme dans la documentation https://github.com/d3/d3-shape/blob/master/README.md#stack_value
+          // Pour cela, il faut passer d'une table en longueur vers une
+          // table en largeur.
+          //
+          // Example de jeu de donnés "en profondeur"
+          // {symbol: "MSFT", date: Mon Mar 01 2010, price: 28.8}
+          // {symbol: "AMZN", date: Mon Mar 01 2010, price: 128.82}
+          // {symbol: "IBM", date: Mon Mar 01 2010, price: 125.55}
+          // {symbol: "AAPL", date: Mon Mar 01 2010, price: 223.02}
+          //
+          // Jeu de donnée "en largeur" équivalent
+          // {date: Mon Mar 01 2010 00:00:00 GMT+0100 (CET), MSFT: 28.8, AMZN: 128.82, IBM: 125.55, AAPL: 223.02}
+
+          // https://gist.github.com/mbostock/1256572#file-index-html-L246
+          var stacked_data = [];
+
+          data.forEach(function(d) {
+            if (typeof stacked_data[d.date] === "undefined") {
+              stacked_data[d.date] = {};
+              stacked_data[d.date].date = d.date;
+            }
+            stacked_data[d.date][d.symbol] = d.price;
+          });
+
+          // Permet de supprimer l'index du tableau
+          stacked_data = d3.values(stacked_data);
+
+          // Wide vs. Long Data in D3
+          // http://jonathansoma.com/tutorials/d3/wide-vs-long-data/
+          var wide_data = d3
+            .nest()
+            .key(function(d) {
+              return d["date"];
+            }) // Groupe par date
+            .rollup(function(d) {
+              // Contenu de d
+              // [ {symbol: "MSFT", },
+              // {symbol: "AMZN", .. },
+              // {symbol: "IBM", .. },
+              // {symbol: "AAPL", .. ]
+              // .reduce c'est l'inverse de map, on crée un seul tableau
+              // à partir de plusieurs tableaux que l'on parcours
+              // Ex: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/Reduce
+              return d.reduce(function(prev, curr) {
+                prev["date"] = curr["date"];
+                prev[curr["symbol"]] = curr["price"];
+                return prev;
+              });
+            })
+            .entries(data)
+            .map(function(d) {
+              // On ne garde que les .value et pas les key
+              return d.value;
+            });
+
+          // d3-stack
+          // https://github.com/d3/d3/blob/master/API.md#stacks
+          stack = d3
+            .stack()
+            .keys(["MSFT", "AMZN", "IBM", "AAPL"])
+            .order(d3.stackOrderNone)
+            .offset(d3.stackOffsetNone);
+
+          if (streamgraph) {
+            stack.offset(d3.stackOffsetWiggle);
+          }
+
+          svg
+            .selectAll(".area")
+            .data(stack(stacked_data), function(d) {
+              return d.key;
+            })
+            .transition()
+            .duration(duration)
+            .style("fill", function(d) {
+              return c(d.key);
+            })
+            .attr("d", function(d) {
+              return area(d);
+            })
+            .attr("transform", function(d, i) {
+              return "translate(0, 0)";
+            });
+        }
+
+        // STREAM GRAPH
+        // Example: https://bl.ocks.org/mbostock/4060954
+        // Il s'agit juste d'un stacked graph avec un offset différent
+        // https://github.com/d3/d3-shape/blob/master/README.md#stackOffsetWiggle
+        function stream_chart() {
+          return stacked_chart(true);
+        }
+      });
+    </script>
+  </body>
+</html>

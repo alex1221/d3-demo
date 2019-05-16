@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>winter olympics story opener</title>
+    <style type="text/css">
+      /* === Meyer Reset & border box (in moderation) === */
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        border: 0;
+        font-family: "Libre Baskerville", serif;
+        font-size: 100%;
+        vertical-align: baseline;
+        height: 100%;
+        box-sizing: border-box;
+      }
+
+      *,
+      *:before,
+      *:after {
+        box-sizing: inherit;
+      }
+
+      a:link,
+      a:visited,
+      a:hover,
+      a:active {
+        color: #000;
+      }
+
+      /* === Canvas === */
+
+      #container {
+        position: fixed;
+        margin: 5px 50px;
+        background: #adceff;
+        background-image: url("http://bit.ly/2jOHOXY");
+        background-size: cover;
+        background-position: center top;
+      }
+
+      #text-wrap {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+
+        position: absolute;
+
+        top: -40%;
+        width: 100%;
+        height: 100%;
+        color: #fff;
+      }
+
+      /* Font styling */
+
+      h1 {
+        font-size: 4em;
+        margin-bottom: 0em;
+        /* text-shadow: 1px 1px 10px #ddf; */
+      }
+
+      canvas {
+        border: 1px solid #ccc;
+      }
+
+      h3 {
+        font-family: "Open Sans";
+        margin-left: 50px;
+      }
+
+      button {
+        margin: 0;
+        padding: 0.5em;
+        outline: none;
+        font-size: 0.65em;
+        color: #555;
+        background-color: rgba(255, 255, 255, 0.7);
+        border: none;
+        transition: all 0.1s ease;
+      }
+
+      button:hover {
+        background-color: rgba(204, 204, 204, 0.7);
+        cursor: pointer;
+      }
+
+      button#simulate {
+        margin-left: 50px;
+      }
+    </style>
+  </head>
+  <body>
+    <h3>Force circles</h3>
+
+    <button id="simulate">simulate</button>
+    <button id="contract">contract</button>
+    <button id="expand">expand</button>
+    <button id="remove">remove</button>
+    <div id="container">
+      <div id="text-wrap">
+        <h1 id="title">Winter Olympics</h1>
+        <p id="text">A history of the white games in words and data</p>
+      </div>
+    </div>
+
+    <div id="curtain">
+      <div id="top"></div>
+      <div id="bottom"></div>
+    </div>
+    
+    <script src="js/d3.v4.min.js"></script>
+    <script>
+      // === Globals === //
+
+      var data,
+        nodes = {};
+      var width = 800,
+        height = 600;
+      var simulation;
+
+      var margin = 20;
+
+      // position variables
+
+      var clusterN = 5;
+      var n = 200;
+      var ringRadius = 100;
+
+      var center = {}; // object to hold different circle-centers
+
+      center.olympic = {
+        0: [
+          (width - 2 * margin) * 0.21 + margin,
+          (height - 2 * margin) * 0.415 + margin
+        ],
+        1: [
+          (width - 2 * margin) * 0.5 + margin,
+          (height - 2 * margin) * 0.415 + margin
+        ],
+        2: [
+          (width - 2 * margin) * 0.79 + margin,
+          (height - 2 * margin) * 0.415 + margin
+        ],
+        3: [
+          (width - 2 * margin) * 0.355 + margin,
+          (height - 2 * margin) * 0.585 + margin
+        ],
+        4: [
+          (width - 2 * margin) * 0.645 + margin,
+          (height - 2 * margin) * 0.585 + margin
+        ]
+      };
+
+      center.start = {
+        0: [(width - 2 * margin) * 0.21 + margin, -2 * ringRadius],
+        1: [(width - 2 * margin) * 0.5 + margin, -2 * ringRadius],
+        2: [(width - 2 * margin) * 0.79 + margin, -2 * ringRadius],
+        3: [(width - 2 * margin) * 0.355 + margin, -2 * ringRadius],
+        4: [(width - 2 * margin) * 0.645 + margin, -2 * ringRadius]
+      };
+
+      // === Set up canvas and elements === //
+
+      d3.select("#container")
+        .style("width", width + "px")
+        .style("height", height + "px");
+      d3.select("#text-wrap")
+        .style("width", width + "px")
+        .style("height", height + "px");
+
+      var canvas = d3
+        .select("#container")
+        .append("canvas")
+        .attr("width", width)
+        .attr("height", height);
+
+      var context = canvas.node().getContext("2d");
+
+      var customBase = document.createElement("custom");
+
+      var custom = d3.select(customBase);
+
+      // === Get simulation data === //
+
+      function getData(clusterNumber, nodeNumber, clusterCenter, circleRadius) {
+        var nodes = [];
+
+        d3.range(clusterNumber).forEach(function(el) {
+          d3.range(nodeNumber).forEach(function(elt) {
+            var obj = {};
+            obj.cluster = el;
+            obj.radius = 2;
+            // obj.colour = 'hsl(218,95%,' + Math.round((el)/(clusterNumber)*100) + '%)';
+            obj.colour = "#fff";
+            obj.x =
+              clusterCenter[el][0] +
+              circleRadius * Math.cos(2 * Math.PI * (elt / nodeNumber)) +
+              Math.random() * 10;
+            obj.y =
+              clusterCenter[el][1] +
+              circleRadius * Math.sin(2 * Math.PI * (elt / nodeNumber)) +
+              Math.random() * 10;
+
+            nodes.push(obj);
+          }); // create circle
+        }); // loop through each cluster
+
+        return nodes;
+      } // getData()
+
+      // === databind options === //
+
+      function databind(data) {
+        var join = custom.selectAll("custom.circles").data(data);
+
+        var enterSel = join
+          .enter()
+          .append("custom")
+          .classed("circles", true)
+          .attr("cx", function(d) {
+            return d.x;
+          })
+          .attr("cy", -10)
+          .attr("r", function(d) {
+            return d.radius;
+          })
+          .attr("fillStyle", "#5892A9");
+
+        join
+          .merge(enterSel)
+          .transition()
+          .duration(5000)
+          .delay(function(d, i) {
+            return ((Math.random() * i) / n) * 1000;
+          })
+          .attr("fillStyle", function(d) {
+            return d.colour;
+          })
+          .attr("cy", function(d) {
+            return d.y;
+          });
+
+        var exitSel = join
+          .exit()
+          .transition()
+          .duration(5000)
+          .delay(function(d, i) {
+            return ((Math.random() * i) / n) * 1000;
+          })
+          .attr("cy", height + 10)
+          .remove();
+      } // databind()
+
+      function draw() {
+        context.clearRect(0, 0, width, height);
+
+        var elements = custom.selectAll("custom.circles");
+
+        elements.each(function(d, i) {
+          var node = d3.select(this);
+
+          context.beginPath();
+          context.moveTo(node.attr("cx") + node.attr("r"), node.attr("cy"));
+          context.arc(
+            node.attr("cx"),
+            node.attr("cy"),
+            node.attr("r"),
+            0,
+            2 * Math.PI
+          );
+          context.fillStyle = node.attr("fillStyle");
+          context.fill();
+        });
+      } // draw()
+
+      function initSimulation(nodes) {
+        simulation = d3
+          .forceSimulation(nodes)
+          .force("charge", d3.forceManyBody().strength(-0.04));
+
+        simulation.on("tick", function() {
+          ticked(nodes);
+        });
+      } // Set up the simulation
+
+      function contractSim(strength, alpha) {
+        simulation.stop();
+
+        simulation
+          .force("charge", d3.forceManyBody().strength(strength))
+          .force("collide", d3.forceCollide().strength(0));
+
+        simulation.alpha(alpha).restart();
+      } // Set up the simulation
+
+      function expandSim(strength, alpha) {
+        simulation.stop();
+
+        simulation
+          .force("charge", d3.forceManyBody().strength(strength))
+          .force("collide", d3.forceCollide().strength(0));
+
+        simulation.alpha(alpha).restart();
+      } // Set up the simulation
+
+      function ticked(nodes) {
+        context.clearRect(0, 0, width, height);
+        context.save();
+        nodes.forEach(drawNode);
+        context.restore();
+      } // ticked()
+
+      function drawNode(d) {
+        context.beginPath();
+        context.moveTo(d.x + d.radius, d.y);
+        context.arc(d.x, d.y, d.radius, 0, 2 * Math.PI);
+        context.fillStyle = d.colour;
+        context.fill();
+      } // drawNode()
+
+      // === Calls === //
+
+      nodes.center = getData(clusterN, n, center.olympic, ringRadius);
+
+      databind(nodes.center);
+
+      var t = d3.timer(function(elapsed) {
+        draw();
+        if (elapsed > 15000) t.stop();
+      }); // timer()
+
+      // === Listener === //
+
+      d3.select("button#simulate").on("mousedown", function() {
+        context.clearRect(0, 0, width, height);
+
+        initSimulation(nodes.center);
+      }); // simulate
+
+      d3.select("button#contract").on("mousedown", function() {
+        contractSim(10, 0.6);
+      }); // contract
+
+      d3.select("button#expand").on("mousedown", function() {
+        expandSim(-20, 0.6);
+      }); // expand
+
+      d3.select("button#remove").on("mousedown", function() {
+        databind([]);
+
+        var t = d3.timer(function(elapsed) {
+          draw();
+          if (elapsed > 15000) t.stop();
+        }); // timer()
+      }); // remove
+    </script>
+  </body>
+</html>

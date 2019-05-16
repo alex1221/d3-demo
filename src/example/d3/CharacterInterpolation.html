@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>character interpolation</title>
+    <style>
+      body {
+        margin: 0;
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+      }
+      canvas {
+        position: absolute;
+        left: 350px;
+      }
+
+      #heatmap {
+        position: absolute;
+      }
+      #heatmap img {
+        position: absolute;
+      }
+      #pointer {
+        position: absolute;
+      }
+      #line-control {
+        position: absolute;
+        bottom: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="heatmap">
+      <img src="resource/CharacterInterpolation/heatMap_char_1_i.jpg" />
+      <svg id="pointer"></svg>
+    </div>
+    <canvas></canvas>
+    <svg id="line-control"></svg>
+
+    <script src="js/d3.min.js"></script>
+    <script src="js/CharacterInterpolation/numeric.min.js"></script>
+    <!-- example data -->
+    <script src="js/CharacterInterpolation/PerformProjections.js"></script>
+    <script src="js/CharacterInterpolation/char_1_i.js"></script>
+
+    <script>
+      var width = 300;
+      var height = 300;
+      // hardcoded for the lowercase i
+      var namespace = CharFuncs.char_1_i;
+
+      var cursorX = 150;
+      var cursorY = 150;
+
+      var canvas = d3.select("canvas").node();
+      canvas.width = width;
+      canvas.height = height;
+      var ctx = canvas.getContext("2d");
+
+      var predictionData = {};
+      var metricInfo = {};
+      var xPoints = {};
+      var xLimits = {};
+
+      predictionData = namespace.getPredictionMatrices();
+
+      xPoints = namespace.getXPoints();
+      xLimits = namespace.getXLimits();
+
+      var NK = 16; // TODO: automate this.
+      /*
+        // calculate the bounds of each element in K
+        var minK = d3.range(NK).map(function() { return Infinity });
+        var maxK = d3.range(NK).map(function() { return -Infinity })
+        d3.range(300).forEach(function(j) {
+          d3.range(300).forEach(function(i) {
+            var point = getPoint(i, j)
+            var instance = [point];
+            var K = getK(instance, predictionData)[0];
+            K.forEach(function(k, index) {
+              if(k < minK[index]) minK[index] = k;
+              if(k > maxK[index]) maxK[index] = k;
+            })
+          })
+        })
+        */
+      // hard-code the min and max array based on running above code
+      // saves execution time, double for loop is a bit expensive
+      /*
+        minK = d3.range(NK).map(function() { return 0 })
+        maxK = d3.range(NK).map(function() { return 2.9179 })
+        console.log("min", minK)
+        console.log("max", maxK)
+        */
+      function renderPointer() {
+        var svg = d3.select("#pointer");
+        svg.attr({
+          width: width,
+          height: height
+        });
+
+        var point = svg
+          .append("circle")
+          .classed("point", true)
+          .datum([cursorX, cursorY]);
+
+        var drag = d3.behavior.drag().on("drag", function() {
+          var mouse = d3.mouse(svg.node());
+          point.datum(mouse).attr({
+            cx: function(d) {
+              return d[0];
+            },
+            cy: function(d) {
+              return d[1];
+            }
+          });
+          // rerender
+          var p = getPoint(mouse[0], mouse[1]);
+          var instance = [p];
+          var K = getK(instance, predictionData);
+          renderControlLine(K);
+          renderChar(K);
+        });
+
+        point
+          .attr({
+            cx: function(d) {
+              return d[0];
+            },
+            cy: function(d) {
+              return d[1];
+            },
+            r: 10
+          })
+          .style({
+            stroke: "#111",
+            fill: "orange",
+            cursor: "pointer"
+          })
+          .call(drag);
+      }
+      renderPointer();
+
+      // render parcoords-like interface for playing with each
+      // element in the K vector and rerendering
+      function renderControlLine(K) {
+        var cWidth = 600;
+        var cHeight = 120;
+        var cMargin = 10;
+        var svg = d3.select("#line-control").attr({
+          width: cWidth,
+          height: cHeight
+        });
+
+        var xscale = d3.scale
+          .ordinal()
+          .domain(d3.range(NK))
+          .rangeBands([0, cWidth], 0.5);
+
+        var yscale = d3.scale
+          .linear()
+          .domain([0, 2.9179]) // determined by above calculations
+          .range([cMargin, cHeight - cMargin]);
+
+        /*
+          function getY(d,i) {
+            var yscale = d3.scale.linear()
+            .domain([minK[i], maxK[i]])
+            .range([cMargin, cHeight - cMargin])
+            return yscale(d)
+          }
+          */
+        var line = d3.svg
+          .line()
+          .x(function(d, i) {
+            return xscale(i);
+          })
+          .y(function(d, i) {
+            return yscale(d);
+          });
+
+        svg
+          .selectAll("line.axis")
+          .data(d3.range(NK))
+          .enter()
+          .append("line")
+          .classed("axis", true)
+          .attr({
+            x1: function(d) {
+              return xscale(d);
+            },
+            x2: function(d) {
+              return xscale(d);
+            },
+            y1: cMargin,
+            y2: cHeight - cMargin
+          })
+          .style({
+            stroke: "#111"
+          });
+
+        var path = svg.selectAll("path.pc").data(K);
+        path
+          .enter()
+          .append("path")
+          .classed("pc", true);
+        path.attr("d", line);
+        path.style({
+          fill: "none",
+          stroke: "#111"
+        });
+
+        // K is an array with 1 element, which is a 16 element array
+        // that we actually care about
+        var controls = svg.selectAll("circle.control").data(K[0]);
+        controls
+          .enter()
+          .append("circle")
+          .classed("control", true);
+
+        var drag = d3.behavior.drag().on("drag", function(d, i) {
+          var dis = d3.select(this);
+          var datum = dis.datum();
+          var y = yscale(datum) + d3.event.dy;
+
+          datum = yscale.invert(y);
+          dis.datum(datum);
+          dis.attr("cy", function(d, i) {
+            return yscale(d);
+          });
+
+          var data = controls.data();
+          path.datum(data);
+          path.attr("d", line);
+
+          renderChar([data]);
+        });
+
+        controls
+          .attr({
+            cx: function(d, i) {
+              return xscale(i);
+            },
+            cy: function(d, i) {
+              return yscale(d);
+            },
+            r: 6
+          })
+          .style({
+            cursor: "pointer",
+            stroke: "#111",
+            fill: "orange"
+          })
+          .call(drag);
+      }
+      var point = getPoint(cursorX, cursorY);
+      var instance = [point];
+      var K = getK(instance, predictionData);
+      renderControlLine(K);
+
+      function getPoint(x, y) {
+        // convert from "screen" space to data space
+        // screen is 300x300 from heatmap
+        var xP = (x - 5.0) / width;
+        var yP = (y - 5.0) / height;
+
+        xP = xP * (xLimits.xMax - xLimits.xMin) + xLimits.xMin;
+        yP = yP * (xLimits.yMax - xLimits.yMin) + xLimits.yMin;
+        return [xP, yP];
+      }
+
+      function renderFromPoint(cursorX, cursorY) {
+        var point = getPoint(cursorX, cursorY);
+        var instance = [point];
+        var K = getK(instance, predictionData);
+        renderChar(K);
+      }
+      function renderChar(K) {
+        ctx.clearRect(0, 0, width, height);
+        ctx.strokeStyle = "#111";
+        ctx.fillStyle = "orange";
+        drawOutlineFromManifoldLocation(K, predictionData, ctx);
+        ctx.stroke();
+        ctx.fill();
+      }
+
+      renderFromPoint(cursorX, cursorY);
+      /*
+          lots of code borrowed directly from: http://vecg.cs.ucl.ac.uk/Projects/projects_fonts/font_project/fontManifoldBrowser.js
+        */
+      function drawOutlineFromManifoldLocation(K, predictionData, context) {
+        var S = performPredictionWithK(K, predictionData);
+        //console.log("prediction curve", S)
+        var y = S.y;
+        var cx = S.cx;
+        var cy = S.cy;
+        var scale = 50; //*0.1333;
+        function scalePtsX(x) {
+          return (x - cx) * scale + 150 + 0;
+        }
+        function scalePtsY(y) {
+          return -(y - cy) * scale + 150 + 0;
+        }
+
+        var yOffsetIdx = predictionData.N * predictionData.NumOutlines;
+
+        var NumOutlinesToDraw = predictionData.NumOutlines;
+        console.log("num outlines", NumOutlinesToDraw);
+
+        context.beginPath();
+        for (var outlineIdx = 0; outlineIdx < NumOutlinesToDraw; outlineIdx++) {
+          var xOffsetIdx = predictionData.N * outlineIdx;
+          context.moveTo(
+            scalePtsX(y[xOffsetIdx][0]),
+            scalePtsY(y[yOffsetIdx + xOffsetIdx][0])
+          );
+          for (var i = 1; i < predictionData.N; i++) {
+            context.lineTo(
+              scalePtsX(y[xOffsetIdx + i][0]),
+              scalePtsY(y[yOffsetIdx + xOffsetIdx + i][0])
+            );
+          }
+          context.lineTo(
+            scalePtsX(y[xOffsetIdx][0]),
+            scalePtsY(y[yOffsetIdx + xOffsetIdx][0])
+          );
+        }
+        context.closePath();
+      }
+    </script>
+  </body>
+</html>
